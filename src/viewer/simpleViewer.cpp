@@ -13,6 +13,9 @@
 
 #include <iostream>
 #include <cassert>
+#include <sstream>
+#include <queue>
+
 // ssao
 
 #include <osg/Material>
@@ -28,6 +31,7 @@
 #include <osgPPU/UnitText.h>
 #include <osgPPU/ShaderAttribute.h>
 
+#include <boost/thread.hpp>
 
 namespace SimpleSSAO {
 
@@ -253,6 +257,46 @@ osgPPU::Processor* createPipeline( int width, int height, osg::Camera* camera, o
         colorBypass->addChild( aoUnit );
         aoUnit->setName( "ComputeAO" );
     }
+
+    //
+    UnitInOut* tiltShift = new UnitInOut();
+    {
+        osg::Shader* fpShader = new osg::Shader( osg::Shader::FRAGMENT );
+
+        // create a shader which will process the depth values
+        fpShader->setShaderSource(
+            "uniform float intensity;\n"\
+            "uniform sampler2D blurredDepthTexture;\n"\
+            "uniform sampler2D originalDepthTexture;\n"\
+            "uniform sampler2D colorTexture;\n"\
+            "void main() {\n"\
+            "   float blurred = texture2D(blurredDepthTexture, gl_TexCoord[0].xy).x;\n"\
+            "   float original = texture2D(originalDepthTexture, gl_TexCoord[0].xy).x;\n"\
+            "   vec4 color = texture2D(colorTexture, gl_TexCoord[0].xy);\n"\
+            "   vec4 result = color - vec4(intensity * clamp((original - blurred), 0.0, 1.0));\n"\
+            "   gl_FragData[0].xyzw = clamp(result, 0.0, 1.0);\n"\
+            "}\n"
+        );
+
+        // create shader attribute and setup one input texture
+        ShaderAttribute* shader = new ShaderAttribute;
+        shader->addShader( fpShader );
+        shader->add( "blurredDepthTexture", osg::Uniform::SAMPLER_2D );
+        shader->set( "blurredDepthTexture", 0 );
+        shader->add( "originalDepthTexture", osg::Uniform::SAMPLER_2D );
+        shader->set( "originalDepthTexture", 1 );
+        shader->add( "colorTexture", osg::Uniform::SAMPLER_2D );
+        shader->set( "colorTexture", 2 );
+        shader->add( "intensity", osg::Uniform::FLOAT );
+        shader->set( "intensity", gIntensity );
+
+        // create the unit and attach the shader to it
+        tiltShift->getOrCreateStateSet()->setAttributeAndModes( shader );
+        aoUnit->addChild( tiltShift );
+        depthBypass->addChild( tiltShift );
+        colorBypass->addChild( tiltShift );
+        aoUnit->setName( "ComputeTiltShift" );
+    }
     lastUnit = aoUnit;
 
     return processor;
@@ -263,16 +307,85 @@ osgPPU::Processor* createPipeline( int width, int height, osg::Camera* camera, o
 
 class ViewerWidget : public QWidget, public osgViewer::CompositeViewer {
 public:
-    ViewerWidget( const std::string& fileName ) : QWidget() {
+    ViewerWidget( ) : QWidget() {
         setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
 
         // disable the default setting of viewer.done() by pressing Escape.
         setKeyEventSetsDone( 0 );
+         
+        osgQt::GraphicsWindowQt* gw; 
+        {
+            osg::DisplaySettings* ds = osg::DisplaySettings::instance().get();
+            osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
+            traits->windowName = "Simple Viewer";
+            traits->windowDecoration = true;
+            traits->x = 0;
+            traits->y = 0;
+            traits->width = 800;
+            traits->height = 600;
+            traits->doubleBuffer = true;
+            traits->samples = 4;
+            traits->alpha = ds->getMinimumNumAlphaBits();
+            traits->stencil = ds->getMinimumNumStencilBits();
+            traits->sampleBuffers = ds->getMultiSamples();
+            traits->samples = ds->getNumMultiSamples();
 
-        QWidget* widget1 = addViewWidget( createGraphicsWindow( 0,0,800,600 ), osgDB::readNodeFile( fileName ) );
+            gw = new osgQt::GraphicsWindowQt( traits.get() );
+        }
+
+
+        {
+            osgViewer::View* view = new osgViewer::View;
+            addView( view );
+
+            osg::Camera* camera = view->getCamera();
+            camera->setGraphicsContext( gw );
+
+            const osg::GraphicsContext::Traits* traits = gw->getTraits();
+
+            camera->setClearColor( osg::Vec4( 0.2, 0.2, 0.6, 1.0 ) );
+            camera->setViewport( new osg::Viewport( 0, 0, traits->width, traits->height ) );
+            camera->setProjectionMatrixAsPerspective( 30.0f, static_cast<double>( traits->width )/static_cast<double>( traits->height ), 1.0f, 100000.0f );
+
+            osg::Group* root = new osg::Group;
+            view->setSceneData( root );
+
+
+            osg::StateSet* ss = root->getOrCreateStateSet();
+            osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
+            ss->setAttribute( cf );
+
+            //ssao
+            if(1)
+            {
+                const unsigned texWidth = traits->width;
+                const unsigned texHeight = traits->height;
+                const bool showAOMap = false;
+                osgPPU::Unit* lastUnit = NULL;
+                osgPPU::Processor* ppu = SimpleSSAO::createPipeline( texWidth, texHeight, view->getCamera(), lastUnit, showAOMap );
+
+                osgPPU::UnitOut* ppuout = new osgPPU::UnitOut();
+                ppuout->setName( "PipelineResult" );
+                ppuout->setInputTextureIndexForViewportReference( -1 ); // need this here to get viewport from camera
+                ppuout->setViewport( new osg::Viewport( 0,0,traits->width, traits->height ) );
+                lastUnit->addChild( ppuout );
+
+                root->addChild( ppu );
+            }
+
+            // create sunlight
+            view->setLightingMode( osg::View::SKY_LIGHT );
+            view->getLight()->setPosition(osg::Vec4(10000,0,10000,0));
+            //view->getLight()->setDirection(osg::Vec3(-1,0,-1));
+            view->getLight()->setAmbient(osg::Vec4( 0.8,0.8,0.8,1 ));
+            view->getLight()->setDiffuse(osg::Vec4( 0.9,0.9,0.9,1 ));
+
+            view->addEventHandler( new osgViewer::StatsHandler );
+            view->setCameraManipulator( new osgGA::TrackballManipulator );
+        }
 
         QGridLayout* grid = new QGridLayout;
-        grid->addWidget( widget1, 0, 0 );
+        grid->addWidget( gw->getGLWidget(), 0, 0 );
         setLayout( grid );
 
         connect( &_timer, SIGNAL( timeout() ), this, SLOT( update() ) );
@@ -280,115 +393,163 @@ public:
         setGeometry( 100, 100, 800, 600 );
     }
 
-    QWidget* addViewWidget( osgQt::GraphicsWindowQt* gw, osg::Node* scene ) {
-        osgViewer::View* view = new osgViewer::View;
-        addView( view );
-
-        osg::Camera* camera = view->getCamera();
-        camera->setGraphicsContext( gw );
-
-        const osg::GraphicsContext::Traits* traits = gw->getTraits();
-
-        camera->setClearColor( osg::Vec4( 0.2, 0.2, 0.6, 1.0 ) );
-        camera->setViewport( new osg::Viewport( 0, 0, traits->width, traits->height ) );
-        camera->setProjectionMatrixAsPerspective( 30.0f, static_cast<double>( traits->width )/static_cast<double>( traits->height ), 1.0f, 100000.0f );
-
-        osg::Group* root = new osg::Group;
-        view->setSceneData( root );
-
-        // create white material
-        osg::Material *material = new osg::Material();
-        material->setDiffuse(osg::Material::FRONT,  osg::Vec4(0.97, 0.97, 0.97, 1.0));
-        material->setSpecular(osg::Material::FRONT, osg::Vec4(0.5, 0.5, 0.5, 1.0));
-        material->setAmbient(osg::Material::FRONT,  osg::Vec4(0.3, 0.3, 0.3, 1.0));
-        material->setEmission(osg::Material::FRONT, osg::Vec4(0.0, 0.0, 0.0, 1.0));
-        material->setShininess(osg::Material::FRONT, 25.0);
-         
-        // assign the material to the scene
-        scene->getOrCreateStateSet()->setAttribute(material);
-
-        root->addChild( scene );
-
-        osg::StateSet* ss = root->getOrCreateStateSet();
-        osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
-        ss->setAttribute( cf );
-
-        //const osg::Vec3 center = scene->getBound().center();
-        //osg::Box* ground = new osg::Box( osg::Vec3d( center.x(),center.y(),-5 ), 2000, 3000, 10 );
-        //osg::Drawable * drawable = new osg::ShapeDrawable(ground);
-        //osg::Geode* basicShapesGeode = new osg::Geode();
-        //basicShapesGeode->addDrawable( drawable );
-        //basicShapesGeode->getOrCreateStateSet()->setAttribute(material);
-        //root->addChild( basicShapesGeode );
-
-        //ssao
-        if(1)
-        {
-            const unsigned texWidth = traits->width;
-            const unsigned texHeight = traits->height;
-            const bool showAOMap = false;
-            osgPPU::Unit* lastUnit = NULL;
-            osgPPU::Processor* ppu = SimpleSSAO::createPipeline( texWidth, texHeight, view->getCamera(), lastUnit, showAOMap );
-
-            osgPPU::UnitOut* ppuout = new osgPPU::UnitOut();
-            ppuout->setName( "PipelineResult" );
-            ppuout->setInputTextureIndexForViewportReference( -1 ); // need this here to get viewport from camera
-            ppuout->setViewport( new osg::Viewport( 0,0,traits->width, traits->height ) );
-            lastUnit->addChild( ppuout );
-
-            root->addChild( ppu );
-        }
-
-        // create sunlight
-        view->setLightingMode( osg::View::SKY_LIGHT );
-        view->getLight()->setPosition(osg::Vec4(10000,0,10000,0));
-        //view->getLight()->setDirection(osg::Vec3(-1,0,-1));
-        view->getLight()->setAmbient(osg::Vec4( 0.8,0.8,0.8,1 ));
-        view->getLight()->setDiffuse(osg::Vec4( 0.9,0.9,0.9,1 ));
-
-        view->addEventHandler( new osgViewer::StatsHandler );
-        view->setCameraManipulator( new osgGA::TrackballManipulator );
-        return gw->getGLWidget();
-    }
-
-    osgQt::GraphicsWindowQt* createGraphicsWindow( int x, int y, int w, int h, const std::string& name="", bool windowDecoration=false ) {
-        osg::DisplaySettings* ds = osg::DisplaySettings::instance().get();
-        osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
-        traits->windowName = name;
-        traits->windowDecoration = windowDecoration;
-        traits->x = x;
-        traits->y = y;
-        traits->width = w;
-        traits->height = h;
-        traits->doubleBuffer = true;
-        traits->samples = 4;
-        traits->alpha = ds->getMinimumNumAlphaBits();
-        traits->stencil = ds->getMinimumNumStencilBits();
-        traits->sampleBuffers = ds->getMultiSamples();
-        traits->samples = ds->getNumMultiSamples();
-
-        return new osgQt::GraphicsWindowQt( traits.get() );
-    }
 
     virtual void paintEvent( QPaintEvent* ) {
+        {
+            boost::lock_guard<boost::mutex> lock( _queueMutex );
+            osg::ref_ptr<osg::Group> scene( getView(0)->getSceneData()->asGroup() ); 
+            while( _addNodeQueue.size() ){
+               scene->addChild(  _addNodeQueue.front().get() );
+               _addNodeQueue.pop();
+            }
+            while( _removeNodeQueue.size() ){
+               scene->removeChild(  _removeNodeQueue.front().get() );
+               _removeNodeQueue.pop();
+            }
+        }
         frame();
     }
 
-protected:
+    // takes ownership
+    void addNode( osg::Node * node ) volatile {
+        ViewerWidget * that = const_cast< ViewerWidget * >(this);
+        boost::lock_guard<boost::mutex> lock( that->_queueMutex );
+        that->_addNodeQueue.push( node );
+    }
 
+    void removeNode( osg::Node * node ) volatile {
+        ViewerWidget * that = const_cast< ViewerWidget * >(this);
+        boost::lock_guard<boost::mutex> lock( that->_queueMutex );
+        that->_removeNodeQueue.push( node );
+    }
+
+protected:
     QTimer _timer;
+    boost::mutex _queueMutex;
+    std::queue< osg::ref_ptr< osg::Node > > _addNodeQueue; 
+    std::queue< osg::ref_ptr< osg::Node > > _removeNodeQueue; 
+};
+
+struct Loader
+{
+    virtual osg::Node * createNode() = 0;
+};
+
+
+
+struct Interpreter
+{
+    Interpreter( volatile ViewerWidget * viewer ) : _viewer( viewer ) {}
+    void operator()()
+    {
+        std::string line;
+        while (std::getline(std::cin, line)) {
+            if ( line.empty() || line[0] == '#' ) continue;
+            std::stringstream ss( line );
+            std::string cmd;
+            if ( ss >> cmd ){
+                if ( "load" == cmd ){
+                    load( ss ) || std::cerr << "error: cannot load\n";
+                }
+                else if ( "unload" == cmd ){
+                    unload( ss ) || std::cerr << "error: cannot unloaload\n";
+                }
+                else if ( "list" == cmd ){
+                    list( ss ) || std::cerr << "error: cannot list\n";
+                }
+                else {
+                    std::cerr << "error: '" << cmd << "' command not found\n";
+                }
+            }
+        }
+        if (QApplication::instance()) QApplication::instance()->quit();
+    }
+
+    bool list( std::stringstream & ) const
+    {
+        for ( auto l : _nodeMap ) {
+            std::cout << "    " << l.first << "\n";
+        }
+        return true;
+    }
+
+    bool unload( std::stringstream & ss )
+    {
+        std::string layerName;
+        if ( ss >> layerName )
+        {
+            const auto found = _nodeMap.find( layerName );
+            if ( found != _nodeMap.end() ){
+                _viewer->removeNode( found->second.get() );
+            }
+            else {
+                std::cerr << "error: layer '" << layerName << "' not found\n";
+                return false;
+            }
+        }
+        else
+        {
+            std::cerr << "error: not enough arguments\n";
+            return false;
+        }
+        return true;
+    }
+    bool load( std::stringstream & ss )
+    {
+        std::string layerName;
+        std::string fileName;
+        if ( ss >> layerName >> fileName )
+        {
+            const auto found = _nodeMap.find( layerName );
+            if ( found != _nodeMap.end() ){
+                std::cerr << "error: '" << layerName << "' already exists\n";
+                return false;
+            }
+            osg::ref_ptr< osg::Node > scene = osgDB::readNodeFile( fileName );
+            if ( !scene.get() ) {
+                std::cerr << "error: cannot load '" << fileName << "'\n";
+                return false;
+            }
+            // create white material
+            osg::Material *material = new osg::Material();
+            material->setDiffuse(osg::Material::FRONT,  osg::Vec4(0.97, 0.97, 0.97, 1.0));
+            material->setSpecular(osg::Material::FRONT, osg::Vec4(0.5, 0.5, 0.5, 1.0));
+            material->setAmbient(osg::Material::FRONT,  osg::Vec4(0.3, 0.3, 0.3, 1.0));
+            material->setEmission(osg::Material::FRONT, osg::Vec4(0.0, 0.0, 0.0, 1.0));
+            material->setShininess(osg::Material::FRONT, 25.0);
+             
+            // assign the material to the scene
+            scene->getOrCreateStateSet()->setAttribute(material);
+
+            _viewer->addNode( scene.get() );
+            _nodeMap.insert( std::make_pair( layerName, scene.get() ) );
+            return true;
+        }
+        else
+        {
+            std::cerr << "error: not enough arguments\n";
+            return false;
+        }
+    }
+public:
+    volatile ViewerWidget * _viewer;
+    std::map< std::string, osg::ref_ptr< osg::Node > > _nodeMap;
 };
 
 int main( int argc, char** argv )
 {
-    if ( argc < 2 ) {
-        std::cerr << "error: missing file name\n";
-        return 1;
-    }
-
-    //osg::DisplaySettings::instance()->setNumMultiSamples( 4 );
+    osg::DisplaySettings::instance()->setNumMultiSamples( 4 );
     QApplication app( argc, argv );
-    ViewerWidget* viewWidget = new ViewerWidget( argv[1] );
+    ViewerWidget* viewWidget = new ViewerWidget();
     viewWidget->show();
-    return app.exec();
+    
+    // start interpretter
+    Interpreter interpreter( viewWidget );
+    boost::thread interpreterThread( interpreter );
+
+    const int ret = app.exec();
+
+    interpreterThread.join(); // interpretter has a pointer on the viewer, it's safer to join it befaore the viwer gets destroyed
+
+    return ret;
 }
