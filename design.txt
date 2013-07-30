@@ -1,0 +1,16 @@
+This is a simple spec sheet for the simple 3d viewer.
+
+- layers can be added/removed (viewed or hidden) using their name as identifyer
+- effects can be added/removed using a name
+- 2D layers (raster or vector) are projected on surfaces (used as textures) that are nearly horizontal, a 3D layer to project on must be specified. If no 3D model is present, create a default plane with the same size as the layer.
+- 3D models come either from postgis DB or from file (for postgis we may use ssh type syntax user@server, but the passwd is a problem)
+- syntax is in .json format
+- data loading can be long, so the interpreter/loader and the viewer will run in different threads, nodes will be added to the scenegraph when ready.
+
+{ "load" : "layerName", { "url" : "url", "user" : "user", "passwd" : "passwd", "dbname" : "dbname", "table" : "table" }}
+{ unload : layerName }
+{ view : layerName }
+{ hide : layerName }
+{ raise : layerName }
+{ "lower" : "layerName" }
+
