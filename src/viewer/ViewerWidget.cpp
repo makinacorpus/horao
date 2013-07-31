@@ -48,7 +48,9 @@ ViewerWidget::ViewerWidget():
 
         camera->setClearColor( osg::Vec4( 0.2, 0.2, 0.6, 1.0 ) );
         camera->setViewport( new osg::Viewport( 0, 0, traits->width, traits->height ) );
-        camera->setProjectionMatrixAsPerspective( 30.0f, double( traits->width )/double( traits->height ), 1.0f, 100000.0f );
+        camera->setProjectionMatrixAsPerspective( 30.0f, double( traits->width )/double( traits->height ), 1.0f, 10000.0f );
+        //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
+        //camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 
         osg::Group* root = new osg::Group;
         view->setSceneData( root );
@@ -77,7 +79,7 @@ ViewerWidget::ViewerWidget():
 
         // create sunlight
         view->setLightingMode( osg::View::SKY_LIGHT );
-        view->getLight()->setPosition(osg::Vec4(10000,0,10000,0));
+        view->getLight()->setPosition(osg::Vec4(1000,0,1000,0));
         //view->getLight()->setDirection(osg::Vec3(-1,0,-1));
         view->getLight()->setAmbient(osg::Vec4( 0.8,0.8,0.8,1 ));
         view->getLight()->setDiffuse(osg::Vec4( 0.9,0.9,0.9,1 ));

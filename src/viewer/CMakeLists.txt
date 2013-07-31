@@ -1,5 +1,7 @@
 add_executable( simpleViewer 
-    simpleViewer.cpp
+    main.cpp
+    ViewerWidget.cpp
+    Interpreter.cpp
 )
 set_target_properties( simpleViewer PROPERTIES DEBUG_POSTFIX "d" )
 target_link_libraries( simpleViewer
