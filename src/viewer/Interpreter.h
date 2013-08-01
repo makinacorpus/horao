@@ -33,8 +33,8 @@ private:
     std::map< std::string, osg::ref_ptr< osg::Node > > _nodeMap;
     const std::string _inputFile;
 
-    osg::Node * loadFile( std::stringstream & ss );
-    osg::Node * loadPostgis( std::stringstream & ss );
+    osg::ref_ptr< osg::Node > loadFile( std::stringstream & ss );
+    osg::ref_ptr< osg::Node > loadPostgis( std::stringstream & ss );
 
 };
 

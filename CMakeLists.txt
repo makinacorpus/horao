@@ -35,7 +35,7 @@ find_package( Boost COMPONENTS
 find_package( Qt4 COMPONENTS QtGui QtCore QtSql REQUIRED )
 set( QT_LIBRARIES ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QT_QTSQL_LIBRARY} )
 
-find_package( OpenSceneGraph COMPONENTS osgQt osgViewer osgGA osgDB osgUtil REQUIRED )
+find_package( OpenSceneGraph COMPONENTS osgQt osgViewer osgGA osgDB osgUtil osgText REQUIRED )
 
 set(OPENSCENEGRAPH_LIBRARIES osgPPU ${OPENSCENEGRAPH_LIBRARIES})
 

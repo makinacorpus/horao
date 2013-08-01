@@ -96,7 +96,7 @@ bool Interpreter::load( std::stringstream & ss )
     if ( "file" == sourceType ) {
         scene = loadFile( ss );
     }
-    if ( "postgis" == sourceType ) {
+    else if ( "postgis" == sourceType ) {
         scene = loadPostgis( ss );
     }
     else {
@@ -114,7 +114,7 @@ bool Interpreter::load( std::stringstream & ss )
     return true;
 }
 
-osg::Node * Interpreter::loadFile( std::stringstream & ss )
+osg::ref_ptr< osg::Node > Interpreter::loadFile( std::stringstream & ss )
 {
     std::string fileName;
     if ( !(ss >> fileName ) ) {
@@ -128,19 +128,19 @@ osg::Node * Interpreter::loadFile( std::stringstream & ss )
     }
     // create white material
     osg::Material *material = new osg::Material();
-    material->setDiffuse(osg::Material::FRONT,  osg::Vec4(0.97, 0.97, 0.97, 1.0));
+    material->setDiffuse(osg::Material::FRONT,  osg::Vec4(0.9, 0.9, 0.9, 1.0));
     material->setSpecular(osg::Material::FRONT, osg::Vec4(0.5, 0.5, 0.5, 1.0));
-    material->setAmbient(osg::Material::FRONT,  osg::Vec4(0.3, 0.3, 0.3, 1.0));
-    material->setEmission(osg::Material::FRONT, osg::Vec4(0.0, 0.0, 0.0, 1.0));
+    material->setAmbient(osg::Material::FRONT,  osg::Vec4(0.5, 0.5, 0.5, 1.0));
+    material->setEmission(osg::Material::FRONT, osg::Vec4(0.1, 0.1, 0.1, 1.0));
     material->setShininess(osg::Material::FRONT, 25.0);
      
     // assign the material to the scene
     scene->getOrCreateStateSet()->setAttribute(material);
 
-    return scene.get();
+    return scene;
 }
 
-osg::Node * Interpreter::loadPostgis( std::stringstream & ss ) {
+osg::ref_ptr< osg::Node > Interpreter::loadPostgis( std::stringstream & ss ) {
     std::string host, dbname, table, user, passwd;
     if ( !(ss >> host >> dbname >> table >> user >> passwd ) ) {
         std::cerr << "error: not enough arguments\n";
@@ -177,7 +177,7 @@ osg::Node * Interpreter::loadPostgis( std::stringstream & ss ) {
     
     }
     QSqlDatabase::removeDatabase("posgisDB");
-    return scene.get();
+    return scene;
 }
 
 }

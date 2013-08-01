@@ -23,9 +23,9 @@ namespace SimpleSSAO {
 //-----------------------------------------------------------------------------------------
 // Default variables desfribing the algorithm parameters
 //-----------------------------------------------------------------------------------------
-const float gBlurSigma = 5;
+const float gBlurSigma = 4;
 const float gBlurRadius = 15;
-const float gIntensity = 20;
+const float gIntensity = 15;
 
 //-----------------------------------------------------------------------------------------
 // Create RTT texture
@@ -113,9 +113,9 @@ osgPPU::Processor* createPipeline( int width, int height, osg::Camera* camera, o
         // read shaders from file
         osg::ref_ptr<osgDB::ReaderWriter::Options> fragmentOptions = new osgDB::ReaderWriter::Options( "fragment" );
         osg::ref_ptr<osgDB::ReaderWriter::Options> vertexOptions = new osgDB::ReaderWriter::Options( "vertex" );
-        osg::Shader* vshader = osgDB::readShaderFile( "/home/mora/osgPPU/Data/glsl/gauss_convolution_vp.glsl", vertexOptions.get() );
-        osg::Shader* fhshader = osgDB::readShaderFile( "/home/mora/osgPPU/Data/glsl/gauss_convolution_1Dx_fp.glsl", fragmentOptions.get() );
-        osg::Shader* fvshader = osgDB::readShaderFile( "/home/mora/osgPPU/Data/glsl/gauss_convolution_1Dy_fp.glsl", fragmentOptions.get() );
+        osg::Shader* vshader = osgDB::readShaderFile( "gauss_convolution_vp.glsl", vertexOptions.get() );
+        osg::Shader* fhshader = osgDB::readShaderFile( "gauss_convolution_1Dx_fp.glsl", fragmentOptions.get() );
+        osg::Shader* fvshader = osgDB::readShaderFile( "gauss_convolution_1Dy_fp.glsl", fragmentOptions.get() );
         assert( vshader && fhshader && fvshader );
 
         // setup horizontal blur shaders
