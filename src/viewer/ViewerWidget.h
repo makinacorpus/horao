@@ -5,6 +5,7 @@
 #include <osgViewer/ViewerEventHandlers>
 #include <osgQt/GraphicsWindowQt>
 #include <osgPPU/UnitOut.h>
+#include <osgEarth/MapNode>
 
 #include <QGridLayout>
 #include <QTimer>
@@ -19,18 +20,21 @@ namespace Viewer {
 struct ViewerWidget : QWidget, osgViewer::CompositeViewer
 {
     ViewerWidget();
-    void addNode( osg::Node * node ) volatile;
-    void removeNode( osg::Node * node ) volatile;
-    void addSSAO() volatile;
+    void addLayer( osgEarth::Layer * layer ) volatile;
+    void removeLayer( osgEarth::Layer * layer ) volatile;
 
     void paintEvent( QPaintEvent* );
     void resizeEvent( QResizeEvent* );
 private:
     QTimer _timer;
     boost::mutex _queueMutex;
-    std::queue< osg::ref_ptr< osg::Node > > _addNodeQueue; 
-    std::queue< osg::ref_ptr< osg::Node > > _removeNodeQueue;
+    std::queue< osg::ref_ptr< osgEarth::Layer > > _addLayerQueue; 
+    std::queue< osg::ref_ptr< osgEarth::Layer > > _removeLayerQueue;
     osg::ref_ptr< osgPPU::UnitOut > _ppuout;
+    osg::ref_ptr< osgEarth::MapNode > _mapNode;
+
+    void addLayer( osgEarth::Layer * layer  );
+    void removeLayer( osgEarth::Layer * layer  );
 };
 
 }

@@ -2,6 +2,7 @@ cmake_minimum_required( VERSION 2.8 )
 project( 3dstack )
 
 set( CMAKE_DEBUG_POSTFIX "d" )
+SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
 
 #----------------------------------------------------------------------------
 # build options
@@ -36,8 +37,15 @@ find_package( Qt4 COMPONENTS QtGui QtCore QtSql REQUIRED )
 set( QT_LIBRARIES ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QT_QTSQL_LIBRARY} )
 
 find_package( OpenSceneGraph COMPONENTS osgQt osgViewer osgGA osgDB osgUtil osgText REQUIRED )
-
 set(OPENSCENEGRAPH_LIBRARIES osgPPU ${OPENSCENEGRAPH_LIBRARIES})
+
+set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake )
+find_package( OSGEARTH REQUIRED )
+set(OSGEARTH_LIBRARIES osgEarth)
+
+find_package( GDAL REQUIRED )
+
+find_package(EXPAT REQUIRED)
 
 #-- note that SYSTEM turns -I/path to -isystem and avoid warnings in CGAL and Boost
 include_directories( SYSTEM 

@@ -14,29 +14,29 @@ namespace Viewer {
 struct Interpreter
 {
     Interpreter( volatile ViewerWidget * viewer, const std::string & fileName = "" ) : _viewer( viewer ), _inputFile( fileName ) {}
+
+    // The interpreter uses xml definitions of osgearth properties and create layers.
+    // Several commands (like <unload name="layerName"/> or <list/>) have been added
+    // to allow to interactively modify the map.
     void operator()();
-    bool help( std::stringstream & ) const {
+    bool help() const {
         std::cout 
-            << "    help: display this.\n"
-            << "    list: list all layers.\n"
-            << "    load <layerName> file <fileName>: load model from file.\n"
-            << "    load <layerName> postgis <host> <dbname> <table> <user> <passwd>: load model from database.\n"
-            << "    unload <layerName>: unload layer.\n"
+            << "    <help/>: display this.\n"
+            << "    <list/>: list all layers.\n"
+            << "    <image name=\"layerName\">...</image>: load image layer.\n"
+            << "    <elevation name=\"layerName\">...</elevation>: load elevation layer.\n" 
+            << "    <unload name=\"layerName\">: unload layer.\n"
             ;
         return true;
     }
-    bool list( std::stringstream & ) const;
-    bool load( std::stringstream & ss );
-    bool unload( std::stringstream & ss );
+    //bool list() const;
+    bool loadImage(const std::string & xml);
+    //bool unload(const std::string & xml);
 private:
     volatile ViewerWidget * _viewer;
-    std::map< std::string, osg::ref_ptr< osg::Node > > _nodeMap;
     const std::string _inputFile;
-
-    osg::ref_ptr< osg::Node > loadFile( std::stringstream & ss );
-    osg::ref_ptr< osg::Node > loadPostgis( std::stringstream & ss );
-
 };
+
 
 }
 }
