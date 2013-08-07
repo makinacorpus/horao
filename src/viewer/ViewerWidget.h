@@ -20,8 +20,10 @@ namespace Viewer {
 struct ViewerWidget : QWidget, osgViewer::CompositeViewer
 {
     ViewerWidget();
-    void addLayer( osgEarth::Layer * layer ) volatile;
-    void removeLayer( osgEarth::Layer * layer ) volatile;
+    // should be called before any other layer operation
+    void addMap( osgEarth::MapNode * ) volatile;
+    void addLayer( osgEarth::Layer * ) volatile;
+    void removeLayer( osgEarth::Layer * ) volatile;
 
     void paintEvent( QPaintEvent* );
     void resizeEvent( QResizeEvent* );

@@ -1,0 +1,11 @@
+<options>
+    <profile srs    = "epsg:3946"
+         xmin   = "1829995"
+         xmax   = "1869005"
+         ymin   = "5150995"
+         ymax   = "5195005"/>
+</options>
+
+<image name="elevation" driver="gdal">
+    <url>../test/mnt_lyon.tif</url>
+</image>

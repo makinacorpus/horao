@@ -4,6 +4,7 @@
 #include <osg/Material>
 #include <osgEarth/Map>
 #include <osgEarth/MapNode>
+#include <osgEarth/XmlUtils>
 #include <osgEarthDrivers/tms/TMSOptions>
 #include <osgEarthDrivers/gdal/GDALOptions>
 
@@ -63,13 +64,28 @@ void endElement(void *userData, const XML_Char *name){
         if ( "help" == that->elemName ){
             that->interpreter->help();
         }
-        else if ( "image" == that->elemName ){
-            if ( !that->interpreter->loadImage( that->elemContend ) ){
-                std::cerr << "error: cannot load '" << name << "'\n";
+        else if ( "options" == that->elemName ){
+            std::cout << "loading options\n";
+            if ( !that->interpreter->createMap( that->elemContend ) ){
+                std::cerr << "error: cannot create map.'\n";
             }
         }
+        else if ( "image" == that->elemName ){
+            std::cout << "loading image...";
+            if ( !that->interpreter->loadImage( that->elemContend ) ){
+                std::cerr << "error: cannot load image.\n";
+            }
+            std::cout << " done\n";
+        }
+        else if ( "model" == that->elemName ){
+            std::cout << "loading model... ";
+            if ( !that->interpreter->loadModel( that->elemContend ) ){
+                std::cerr << "error: cannot load model.\n";
+            }
+            std::cout << " done\n";
+        }
         else{
-            std::cerr << "error: unknown command '" << name << "'\n";
+            std::cerr << "error: unknown command '" << name << "'.\n";
         }
         that->elemContend = "";
     }
@@ -84,6 +100,11 @@ void characterDataHandler(void *userData, const XML_Char *s, int len){
     }
 }
 
+Interpreter::Interpreter( volatile ViewerWidget * viewer, const std::string & fileName )
+    : _viewer( viewer )
+    , _inputFile( fileName ) 
+{}
+
 void Interpreter::operator()()
 {
     std::ifstream ifs( _inputFile.c_str() );
@@ -95,14 +116,19 @@ void Interpreter::operator()()
     XML_SetElementHandler(parser, startElement, endElement);
     XML_SetCharacterDataHandler(parser, characterDataHandler);
 
-    std::string line;
-    bool done = false;
-    while (!done) {
-        done = !( std::getline( ifs, line ) || !std::getline( std::cin, line ) );
-        if (!XML_Parse(parser, line.c_str(), line.length(), done)) {
+    std::string line("<map>");
+    XML_Parse(parser, line.c_str(), line.length(), false);
+    while ( std::getline( ifs, line ) || std::getline( std::cin, line ) ) {
+        if (!XML_Parse(parser, line.c_str(), line.length(), false)) {
             std::cerr << "error: " << XML_ErrorString( XML_GetErrorCode(parser) ) << "\n";
             userData = XmlUserData(this);
         }
+    }
+
+    line = "</map>";
+    if (!XML_Parse(parser, line.c_str(), line.length(), true)) {
+        std::cerr << "error: " << XML_ErrorString( XML_GetErrorCode(parser) ) << "\n";
+        userData = XmlUserData(this);
     }
     XML_ParserFree(parser);
 
@@ -112,14 +138,58 @@ void Interpreter::operator()()
 
 bool Interpreter::loadImage(const std::string & xml)
 {
-    using namespace osgEarth;
-    using namespace osgEarth::Drivers;
-
-    Config conf;
+    if (!_viewer){
+        std::cerr << "error: map has not been created yet.\n"; 
+        return false;
+    }
+    osgEarth::Config conf;
     std::istringstream iss(xml);
     if ( !conf.fromXML( iss ) ) return false;
-    osg::ref_ptr<ImageLayer> layer = new ImageLayer( ImageLayerOptions( conf ) );
+    osgEarth::Config confOpt;
+    conf.getObjIfSet( "image",      confOpt ); 
+    osg::ref_ptr<osgEarth::ImageLayer> layer = new osgEarth::ImageLayer( osgEarth::ImageLayerOptions( confOpt ) );
+
     _viewer->addLayer( layer.get() );
+    return true;
+}
+
+bool Interpreter::loadModel(const std::string & xml)
+{
+    if (!_viewer){
+        std::cerr << "error: map has not been created yet.\n"; 
+        return false;
+    }
+    osgEarth::Config conf;
+    std::istringstream iss(xml);
+    if ( !conf.fromXML( iss ) ) return false;
+    osgEarth::Config confOpt;
+    conf.getObjIfSet( "model",      confOpt ); 
+    osg::ref_ptr<osgEarth::ModelLayer> layer = new osgEarth::ModelLayer( osgEarth::ModelLayerOptions( confOpt ) );
+
+    _viewer->addLayer( layer.get() );
+    return true;
+}
+
+
+bool Interpreter::createMap(const std::string & xml)
+{
+    osgEarth::Config conf;
+    std::istringstream iss(xml);
+    if ( !conf.fromXML( iss ) ) return false;
+
+    osgEarth::Config confOpt;
+    conf.getObjIfSet( "options",      confOpt ); 
+    confOpt.add( "name", "map" ) ;
+    confOpt.add( "type","projected" );
+   
+    osgEarth::MapOptions mapOpt( confOpt );
+    if ( !mapOpt.profile().isSet() ){
+        std::cerr << "error: did not find profile in options.\n";
+        return false;
+    }
+
+    osg::ref_ptr<osgEarth::Map> map = new osgEarth::Map( mapOpt  );
+    _viewer->addMap( new osgEarth::MapNode( map.get() ) );
     return true;
 }
 

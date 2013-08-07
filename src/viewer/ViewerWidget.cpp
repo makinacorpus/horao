@@ -60,11 +60,6 @@ ViewerWidget::ViewerWidget():
         osg::ref_ptr<osg::Group> root = new osg::Group;
         view->setSceneData( root.get() );
 
-        osgEarth::MapOptions opt( osgEarth::Config("type","projected") );
-        osg::ref_ptr<osgEarth::Map> map = new osgEarth::Map( opt );
-        _mapNode = new osgEarth::MapNode( map ); 
-        root->addChild( _mapNode.get() );
-
         osg::StateSet* ss = root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
         ss->setAttribute( cf );
@@ -107,6 +102,7 @@ ViewerWidget::ViewerWidget():
 
     connect( &_timer, SIGNAL( timeout() ), this, SLOT( update() ) );
     _timer.start( 10 );
+    show();
 }
 
 void ViewerWidget::resizeEvent( QResizeEvent* e)
@@ -144,6 +140,12 @@ void ViewerWidget::paintEvent( QPaintEvent* )
     frame();
 }
 
+void ViewerWidget::addMap( osgEarth::MapNode * map ) volatile 
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    that->_mapNode = map;
+}
+
 void ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile 
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
@@ -161,6 +163,12 @@ void ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
 
 void ViewerWidget::addLayer( osgEarth::Layer * layer )
 {
+    assert(layer);
+    if (!_mapNode.get()){
+        std::cerr << "error: trying to add layer without map.\n";
+        return;
+    }
+
 #define CAST_ADD_RETURN( LayerType ) \
     if ( osgEarth::LayerType * l = dynamic_cast<osgEarth::LayerType *>(layer) ) {\
         _mapNode->getMap()->add##LayerType( l ); \
@@ -181,6 +189,12 @@ void ViewerWidget::addLayer( osgEarth::Layer * layer )
 
 void ViewerWidget::removeLayer( osgEarth::Layer * layer )
 {
+    assert(layer);
+    if (!_mapNode.get()){
+        std::cerr << "error: trying to add layer without map.\n";
+        return;
+    }
+
 #define CAST_REM_RETURN( LayerType ) \
     if ( osgEarth::LayerType * l = dynamic_cast<osgEarth::LayerType *>(layer) ) {\
         _mapNode->getMap()->remove##LayerType( l ); \
