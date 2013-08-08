@@ -8,6 +8,7 @@
 #include <osgEarth/Map>
 
 #define SSAO 0
+#define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
 
 namespace Stack3d {
 namespace Viewer {
@@ -125,94 +126,81 @@ void ViewerWidget::resizeEvent( QResizeEvent* e)
 
 void ViewerWidget::paintEvent( QPaintEvent* )
 {
-    if ( _addLayerQueue.size() || _removeLayerQueue.size() )
-    {
-        boost::lock_guard<boost::mutex> lock( _queueMutex );
-        while( _addLayerQueue.size() ){
-           addLayer( _addLayerQueue.front().get() );
-           _addLayerQueue.pop();
-        }
-        while( _removeLayerQueue.size() ){
-           removeLayer( _removeLayerQueue.front().get() );
-           _removeLayerQueue.pop();
-        }
-    }
+    boost::lock_guard<boost::mutex> lock( _mutex );
     frame();
 }
 
-void ViewerWidget::addMap( osgEarth::MapNode * map ) volatile 
+bool ViewerWidget::addMap( osgEarth::MapNode * map ) volatile 
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    
     that->_mapNode = map;
+
+    that->getView(0)->getSceneData()->asGroup()->addChild( map );
+    return true;
 }
 
-void ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile 
-{
-    ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_queueMutex );
-    that->_addLayerQueue.push( layer );
-}
-
-void ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
-{
-    ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_queueMutex );
-    that->_removeLayerQueue.push( layer );
-}
-
-
-void ViewerWidget::addLayer( osgEarth::Layer * layer )
+bool ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile 
 {
     assert(layer);
-    if (!_mapNode.get()){
+
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    
+    if (!that->_mapNode.get()){
         std::cerr << "error: trying to add layer without map.\n";
-        return;
+        return false;
     }
 
 #define CAST_ADD_RETURN( LayerType ) \
     if ( osgEarth::LayerType * l = dynamic_cast<osgEarth::LayerType *>(layer) ) {\
-        _mapNode->getMap()->add##LayerType( l ); \
-        return;\
+        that->_mapNode->getMap()->add##LayerType( l ); \
+        return true;\
     }
 
     CAST_ADD_RETURN( ImageLayer )
     CAST_ADD_RETURN( ElevationLayer )
     CAST_ADD_RETURN( ModelLayer )
     if ( osgEarth::MaskLayer * l = dynamic_cast<osgEarth::MaskLayer *>(layer) ) {
-        _mapNode->getMap()->addTerrainMaskLayer( l );
-        return;
+        that->_mapNode->getMap()->addTerrainMaskLayer( l );
+        return true;
     }
 
     assert(false && bool("unhandled layer type"));
 #undef CAST_ADD_RETURN
 }
 
-void ViewerWidget::removeLayer( osgEarth::Layer * layer )
+bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
 {
     assert(layer);
-    if (!_mapNode.get()){
+
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    boost::lock_guard<boost::mutex> lock( that->_mutex );
+
+    if (!that->_mapNode.get()){
         std::cerr << "error: trying to add layer without map.\n";
-        return;
+        return false;
     }
 
 #define CAST_REM_RETURN( LayerType ) \
     if ( osgEarth::LayerType * l = dynamic_cast<osgEarth::LayerType *>(layer) ) {\
-        _mapNode->getMap()->remove##LayerType( l ); \
-        return;\
+        that->_mapNode->getMap()->remove##LayerType( l ); \
+        return true;\
     }
 
     CAST_REM_RETURN( ImageLayer )
     CAST_REM_RETURN( ElevationLayer )
     CAST_REM_RETURN( ModelLayer )
     if ( osgEarth::MaskLayer * l = dynamic_cast<osgEarth::MaskLayer *>(layer) ) {
-        _mapNode->getMap()->removeTerrainMaskLayer( l );
-        return;
+        that->_mapNode->getMap()->removeTerrainMaskLayer( l );
+        return true;
     }
 
     assert(false && bool("unhandled layer type"));
 #undef CAST_REM_RETURN
-}
 
+}
 }
 }
 

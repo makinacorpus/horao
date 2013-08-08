@@ -20,6 +20,8 @@
 
 #include <expat.h>
 
+#define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
+
 namespace Stack3d {
 namespace Viewer {
 
@@ -65,24 +67,19 @@ void endElement(void *userData, const XML_Char *name){
             that->interpreter->help();
         }
         else if ( "options" == that->elemName ){
-            std::cout << "loading options\n";
             if ( !that->interpreter->createMap( that->elemContend ) ){
                 std::cerr << "error: cannot create map.'\n";
             }
         }
         else if ( "image" == that->elemName ){
-            std::cout << "loading image...";
             if ( !that->interpreter->loadImage( that->elemContend ) ){
                 std::cerr << "error: cannot load image.\n";
             }
-            std::cout << " done\n";
         }
         else if ( "model" == that->elemName ){
-            std::cout << "loading model... ";
             if ( !that->interpreter->loadModel( that->elemContend ) ){
                 std::cerr << "error: cannot load model.\n";
             }
-            std::cout << " done\n";
         }
         else{
             std::cerr << "error: unknown command '" << name << "'.\n";
@@ -138,6 +135,7 @@ void Interpreter::operator()()
 
 bool Interpreter::loadImage(const std::string & xml)
 {
+    DEBUG_TRACE
     if (!_viewer){
         std::cerr << "error: map has not been created yet.\n"; 
         return false;
@@ -149,16 +147,12 @@ bool Interpreter::loadImage(const std::string & xml)
     conf.getObjIfSet( "image",      confOpt ); 
     osg::ref_ptr<osgEarth::ImageLayer> layer = new osgEarth::ImageLayer( osgEarth::ImageLayerOptions( confOpt ) );
 
-    _viewer->addLayer( layer.get() );
-    return true;
+    return _viewer->addLayer( layer.get() );
 }
 
 bool Interpreter::loadModel(const std::string & xml)
 {
-    if (!_viewer){
-        std::cerr << "error: map has not been created yet.\n"; 
-        return false;
-    }
+    DEBUG_TRACE
     osgEarth::Config conf;
     std::istringstream iss(xml);
     if ( !conf.fromXML( iss ) ) return false;
@@ -166,13 +160,13 @@ bool Interpreter::loadModel(const std::string & xml)
     conf.getObjIfSet( "model",      confOpt ); 
     osg::ref_ptr<osgEarth::ModelLayer> layer = new osgEarth::ModelLayer( osgEarth::ModelLayerOptions( confOpt ) );
 
-    _viewer->addLayer( layer.get() );
-    return true;
+    return _viewer->addLayer( layer.get() );
 }
 
 
 bool Interpreter::createMap(const std::string & xml)
 {
+    DEBUG_TRACE
     osgEarth::Config conf;
     std::istringstream iss(xml);
     if ( !conf.fromXML( iss ) ) return false;
@@ -189,8 +183,7 @@ bool Interpreter::createMap(const std::string & xml)
     }
 
     osg::ref_ptr<osgEarth::Map> map = new osgEarth::Map( mapOpt  );
-    _viewer->addMap( new osgEarth::MapNode( map.get() ) );
-    return true;
+    return _viewer->addMap( new osgEarth::MapNode( map.get() ) );
 }
 
 

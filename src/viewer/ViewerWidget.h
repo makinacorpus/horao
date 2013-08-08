@@ -21,22 +21,17 @@ struct ViewerWidget : QWidget, osgViewer::CompositeViewer
 {
     ViewerWidget();
     // should be called before any other layer operation
-    void addMap( osgEarth::MapNode * ) volatile;
-    void addLayer( osgEarth::Layer * ) volatile;
-    void removeLayer( osgEarth::Layer * ) volatile;
+    bool addMap( osgEarth::MapNode * ) volatile;
+    bool addLayer( osgEarth::Layer * ) volatile;
+    bool removeLayer( osgEarth::Layer * ) volatile;
 
     void paintEvent( QPaintEvent* );
     void resizeEvent( QResizeEvent* );
 private:
     QTimer _timer;
-    boost::mutex _queueMutex;
-    std::queue< osg::ref_ptr< osgEarth::Layer > > _addLayerQueue; 
-    std::queue< osg::ref_ptr< osgEarth::Layer > > _removeLayerQueue;
+    boost::mutex _mutex;
     osg::ref_ptr< osgPPU::UnitOut > _ppuout;
     osg::ref_ptr< osgEarth::MapNode > _mapNode;
-
-    void addLayer( osgEarth::Layer * layer  );
-    void removeLayer( osgEarth::Layer * layer  );
 };
 
 }
