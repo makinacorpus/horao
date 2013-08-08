@@ -3,6 +3,7 @@
 
 #include <osg/CullFace>
 #include <osgGA/TrackballManipulator>
+#include <osgGA/StateSetManipulator>
 #include <osgText/Text>
 #include <osg/io_utils>
 #include <osgEarth/Map>
@@ -13,18 +14,15 @@
 namespace Stack3d {
 namespace Viewer {
 
-ViewerWidget::ViewerWidget(): 
-    QWidget() 
+ViewerWidget::ViewerWidget():
+   osgViewer::Viewer()
 {
-    setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
+    setUpViewInWindow(0, 0, 800, 800 );
+    //setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
 
-    // disable the default setting of viewer.done() by pressing Escape.
-    setKeyEventSetsDone( 0 );
-     
-    osgQt::GraphicsWindowQt* gw; 
+    osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
     {
         osg::DisplaySettings* ds = osg::DisplaySettings::instance().get();
-        osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
         traits->windowName = "Simple Viewer";
         traits->windowDecoration = true;
         traits->x = 0;
@@ -37,20 +35,11 @@ ViewerWidget::ViewerWidget():
         traits->stencil = ds->getMinimumNumStencilBits();
         traits->sampleBuffers = ds->getMultiSamples();
         traits->samples = ds->getNumMultiSamples();
-
-        gw = new osgQt::GraphicsWindowQt( traits.get() );
-        setGeometry( 0, 0, traits->width, traits->height );
     }
 
 
     {
-        osgViewer::View* view = new osgViewer::View;
-        addView( view );
-
-        osg::Camera* camera = view->getCamera();
-        camera->setGraphicsContext( gw );
-
-        const osg::GraphicsContext::Traits* traits = gw->getTraits();
+        osg::Camera* camera = getCamera();
 
         camera->setClearColor( osg::Vec4( 204.0/255, 204.0/255, 204.0/255, 1 ) );
         camera->setViewport( new osg::Viewport( 0, 0, traits->width, traits->height ) );
@@ -59,7 +48,7 @@ ViewerWidget::ViewerWidget():
         //camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 
         osg::ref_ptr<osg::Group> root = new osg::Group;
-        view->setSceneData( root.get() );
+        setSceneData( root.get() );
 
         osg::StateSet* ss = root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
@@ -70,7 +59,7 @@ ViewerWidget::ViewerWidget():
         {
             const bool showAOMap = false;
             osgPPU::Unit* lastUnit = NULL;
-            osgPPU::Processor* ppu = SimpleSSAO::createPipeline( traits->width, traits->height, view->getCamera(), lastUnit, showAOMap );
+            osgPPU::Processor* ppu = SimpleSSAO::createPipeline( traits->width, traits->height, getCamera(), lastUnit, showAOMap );
 
             _ppuout = new osgPPU::UnitOut();
             _ppuout->setName( "PipelineResult" );
@@ -83,29 +72,26 @@ ViewerWidget::ViewerWidget():
 #endif
 
         // create sunlight
-        view->setLightingMode( osg::View::SKY_LIGHT );
-        view->getLight()->setPosition(osg::Vec4(1000,0,1000,0));
-        //view->getLight()->setDirection(osg::Vec3(-1,0,-1));
-        view->getLight()->setAmbient(osg::Vec4( 0.8,0.8,0.8,1 ));
-        view->getLight()->setDiffuse(osg::Vec4( 0.8,0.8,0.8,1 ));
+        setLightingMode( osg::View::SKY_LIGHT );
+        getLight()->setPosition(osg::Vec4(1000,0,1000,0));
+        //getLight()->setDirection(osg::Vec3(-1,0,-1));
+        getLight()->setAmbient(osg::Vec4( 0.8,0.8,0.8,1 ));
+        getLight()->setDiffuse(osg::Vec4( 0.8,0.8,0.8,1 ));
 
-        view->addEventHandler( new osgViewer::StatsHandler );
-        view->setCameraManipulator( new osgGA::TrackballManipulator );
+        addEventHandler( new osgViewer::StatsHandler );
+        setCameraManipulator( new osgGA::TrackballManipulator );
+        
+        addEventHandler(new osgViewer::WindowSizeHandler);
+        addEventHandler(new osgViewer::StatsHandler);
+        addEventHandler( new osgGA::StateSetManipulator( getCamera()->getOrCreateStateSet()) );
+        addEventHandler(new osgViewer::ScreenCaptureHandler);
+
+
     }
-    
-
-
-
-
-    QGridLayout* grid = new QGridLayout;
-    grid->addWidget( gw->getGLWidget(), 0, 0 );
-    setLayout( grid );
-
-    connect( &_timer, SIGNAL( timeout() ), this, SLOT( update() ) );
-    _timer.start( 10 );
-    show();
+    realize();
 }
 
+/*
 void ViewerWidget::resizeEvent( QResizeEvent* e)
 {
     if( _ppuout.get() )
@@ -123,11 +109,21 @@ void ViewerWidget::resizeEvent( QResizeEvent* e)
         }
     }
 }
+*/
 
-void ViewerWidget::paintEvent( QPaintEvent* )
+void ViewerWidget::frame()
 {
     boost::lock_guard<boost::mutex> lock( _mutex );
-    frame();
+    osgViewer::Viewer::frame();
+    if (done()) DEBUG_TRACE;
+}
+
+void ViewerWidget::setDone( bool flag ) volatile
+{
+    DEBUG_TRACE
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    that->osgViewer::Viewer::setDone( flag );
 }
 
 bool ViewerWidget::addMap( osgEarth::MapNode * map ) volatile 
@@ -137,7 +133,7 @@ bool ViewerWidget::addMap( osgEarth::MapNode * map ) volatile
     
     that->_mapNode = map;
 
-    that->getView(0)->getSceneData()->asGroup()->addChild( map );
+    that->getSceneData()->asGroup()->addChild( map );
     return true;
 }
 

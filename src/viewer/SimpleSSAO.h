@@ -11,8 +11,6 @@
 #include <osgPPU/UnitText.h>
 #include <osgPPU/ShaderAttribute.h>
 
-#include <QResizeEvent>
-
 #include <cassert>
 
 

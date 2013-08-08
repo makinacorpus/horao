@@ -8,13 +8,6 @@
 #include <osgEarthDrivers/tms/TMSOptions>
 #include <osgEarthDrivers/gdal/GDALOptions>
 
-#include <QApplication>
-#include <QSqlDatabase>
-#include <QSqlQueryModel>
-#include <QSqlQuery>
-#include <QSqlRecord>
-#include <QSqlError>
-
 #include <iostream>
 #include <cassert>
 
@@ -129,8 +122,7 @@ void Interpreter::operator()()
     }
     XML_ParserFree(parser);
 
-
-    if (QApplication::instance()) QApplication::instance()->quit();
+    _viewer->setDone(true);
 }
 
 bool Interpreter::loadImage(const std::string & xml)
