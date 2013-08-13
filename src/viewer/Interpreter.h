@@ -7,6 +7,7 @@
 
 #include <string>
 #include <sstream>
+#include <iostream>
 
 namespace Stack3d {
 namespace Viewer {
@@ -26,7 +27,7 @@ struct Interpreter
             << "    <options>...</options>: create the map (first thing to do).\n"
             //<< "    <list/>: list all layers.\n"
             << "    <image name=\"layerName\">...</image>: load image layer.\n"
-            //<< "    <elevation name=\"layerName\">...</elevation>: load elevation layer.\n" 
+            << "    <elevation name=\"layerName\">...</elevation>: load elevation layer.\n" 
             //<< "    <unload name=\"layerName\">: unload layer.\n"
             ;
         return true;
@@ -34,6 +35,7 @@ struct Interpreter
     //bool list() const;
     bool loadImage(const std::string & xml);
     bool loadModel(const std::string & xml);
+    bool loadElevation(const std::string & xml);
     //bool unload(const std::string & xml);
     bool createMap(const std::string & xml);
 

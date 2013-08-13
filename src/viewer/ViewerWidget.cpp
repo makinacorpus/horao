@@ -165,6 +165,8 @@ bool ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile
 
     assert(false && bool("unhandled layer type"));
 #undef CAST_ADD_RETURN
+
+    return true;
 }
 
 bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
@@ -196,6 +198,7 @@ bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
     assert(false && bool("unhandled layer type"));
 #undef CAST_REM_RETURN
 
+    return true;
 }
 }
 }

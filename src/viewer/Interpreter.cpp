@@ -74,6 +74,11 @@ void endElement(void *userData, const XML_Char *name){
                 std::cerr << "error: cannot load model.\n";
             }
         }
+        else if ( "elevation" == that->elemName ){
+            if ( !that->interpreter->loadElevation( that->elemContend ) ){
+                std::cerr << "error: cannot load elevation.\n";
+            }
+        }
         else{
             std::cerr << "error: unknown command '" << name << "'.\n";
         }
@@ -155,6 +160,18 @@ bool Interpreter::loadModel(const std::string & xml)
     return _viewer->addLayer( layer.get() );
 }
 
+bool Interpreter::loadElevation(const std::string & xml)
+{
+    DEBUG_TRACE
+    osgEarth::Config conf;
+    std::istringstream iss(xml);
+    if ( !conf.fromXML( iss ) ) return false;
+    osgEarth::Config confOpt;
+    conf.getObjIfSet( "elevation",      confOpt ); 
+    osg::ref_ptr<osgEarth::ElevationLayer> layer = new osgEarth::ElevationLayer( osgEarth::ElevationLayerOptions( confOpt ) );
+
+    return _viewer->addLayer( layer.get() );
+}
 
 bool Interpreter::createMap(const std::string & xml)
 {
