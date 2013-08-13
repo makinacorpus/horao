@@ -62,7 +62,7 @@ class Canvas3D:
 
     # send command to the viewer pipe
     def sendCommand( self, cmd ):
-        if self.process:
+        if self.process and not self.process.stdin.closed:
             self.process.stdin.write( cmd + "\n" )
 
     def addLayer( self, layer ):
@@ -131,11 +131,11 @@ class Canvas3D:
         elif layer.type() == 1:
             provider = layer.dataProvider()
             if provider.name() == 'gdal':
-                xml = """<elevation driver="gdal"><url>%s</url></elevation>""" % layer.source()
+                xml = """<elevation name="%s" driver="gdal"><url>%s</url></elevation>""" % (layer.id(), layer.source())
 
                 self.sendCommand( xml )
 
-                xml = """<image driver="gdal"><url>%s</url></image>""" % layer.source()
+                xml = """<image name="%s" driver="gdal"><url>%s</url></image>""" % (layer.id(), layer.source())
                 self.sendCommand( xml )
 
         # add it to the layer map
@@ -143,8 +143,9 @@ class Canvas3D:
 
     def removeLayer( self, layer ):
         print "layer %s removed" % layer.id()
-        xml = """<unload layer="%s"/>""" % layer.id()
-        # TODO
+        xml = """<unload name="%s"/>""" % layer.id()
+
+        self.sendCommand( xml )
 
         del self.layers[ layer ]
 
@@ -161,11 +162,11 @@ class Canvas3D:
         self.sendCommand( xml )
 
     def setLayerVisibility( self, layer, visibility ):
-        # TODO
         if visibility:
-            print "layer %s is now visible" % layer.id()
+            xml = """<show name="%s"/>""" % layer.id()
         else:
-            print "layer %s is now hidden" % layer.id()
+            xml = """<hide name="%s"/>""" % layer.id()
+        self.sendCommand( xml )
         self.layers[ layer ] = visibility
 
     # qgis signal : layer added

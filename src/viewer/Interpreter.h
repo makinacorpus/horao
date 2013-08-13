@@ -28,7 +28,9 @@ struct Interpreter
             //<< "    <list/>: list all layers.\n"
             << "    <image name=\"layerName\">...</image>: load image layer.\n"
             << "    <elevation name=\"layerName\">...</elevation>: load elevation layer.\n" 
-            //<< "    <unload name=\"layerName\">: unload layer.\n"
+            << "    <unload name=\"layerName\">: unload layer.\n"
+	    << "    <show name=\"layerName\">: show layer.\n"
+	    << "    <hide name=\"layerName\">: hide layer.\n"
             ;
         return true;
     }
@@ -36,7 +38,8 @@ struct Interpreter
     bool loadImage(const std::string & xml);
     bool loadModel(const std::string & xml);
     bool loadElevation(const std::string & xml);
-    //bool unload(const std::string & xml);
+    bool unload(const std::string& name);
+    bool setVisible( const std::string& name, bool visible);
     bool createMap(const std::string & xml);
 
 private:

@@ -24,6 +24,8 @@ struct XmlUserData {
     std::string elemContend;
     int depth;
     Interpreter * interpreter;
+
+    std::string layerId;
 };
 
 inline
@@ -40,6 +42,9 @@ void startElement(void *userData, const XML_Char *name, const XML_Char **atts){
             const std::string key(*(atts++));
             const std::string value(*(atts++));
             that->elemContend += " " + key + "=\"" + value + "\"";
+	    if ( key == "name" ) {
+		that->layerId = value;
+	    }
         }
         that->elemContend += ">";
     }
@@ -77,6 +82,21 @@ void endElement(void *userData, const XML_Char *name){
         else if ( "elevation" == that->elemName ){
             if ( !that->interpreter->loadElevation( that->elemContend ) ){
                 std::cerr << "error: cannot load elevation.\n";
+            }
+        }
+        else if ( "unload" == that->elemName ){
+            if ( !that->interpreter->unload( that->layerId ) ) {
+                std::cerr << "error: cannot unload layer.\n";
+            }
+        }
+        else if ( "show" == that->elemName ){
+            if ( !that->interpreter->setVisible( that->layerId, true ) ) {
+                std::cerr << "error: cannot show layer.\n";
+            }
+        }
+        else if ( "hide" == that->elemName ){
+            if ( !that->interpreter->setVisible( that->layerId, false ) ) {
+                std::cerr << "error: cannot hide layer.\n";
             }
         }
         else{
@@ -145,6 +165,16 @@ bool Interpreter::loadImage(const std::string & xml)
     osg::ref_ptr<osgEarth::ImageLayer> layer = new osgEarth::ImageLayer( osgEarth::ImageLayerOptions( confOpt ) );
 
     return _viewer->addLayer( layer.get() );
+}
+
+bool Interpreter::unload( const std::string& name )
+{
+    return _viewer->removeLayer( name );
+}
+
+bool Interpreter::setVisible( const std::string& name, bool visible )
+{
+    return _viewer->setVisible( name, visible );
 }
 
 bool Interpreter::loadModel(const std::string & xml)

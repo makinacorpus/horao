@@ -166,7 +166,7 @@ bool ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile
     assert(false && bool("unhandled layer type"));
 #undef CAST_ADD_RETURN
 
-    return true;
+    return false;
 }
 
 bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
@@ -198,8 +198,53 @@ bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
     assert(false && bool("unhandled layer type"));
 #undef CAST_REM_RETURN
 
-    return true;
+    return false;
 }
+
+bool ViewerWidget::removeLayer( const std::string& layerId ) volatile
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    boost::lock_guard<boost::mutex> lock( that->_mutex );
+
+    if (!that->_mapNode.get()){
+        std::cerr << "error: trying to add layer without map.\n";
+        return false;
+    }
+
+    if ( osgEarth::ModelLayer* l = that->_mapNode->getMap()->getModelLayerByName( layerId ) ) {
+	that->_mapNode->getMap()->removeModelLayer( l );
+	return true;
+    }
+    if ( osgEarth::ImageLayer* l = that->_mapNode->getMap()->getImageLayerByName( layerId ) ) {
+	that->_mapNode->getMap()->removeImageLayer( l );
+	return true;
+    }
+    if ( osgEarth::ElevationLayer* l = that->_mapNode->getMap()->getElevationLayerByName( layerId ) ) {
+	that->_mapNode->getMap()->removeElevationLayer( l );
+	return true;
+    }
+    assert(false && bool("unhandled layer type"));
+    return false;
+}
+
+bool ViewerWidget::setVisible( const std::string& layerId, bool visible ) volatile
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    boost::lock_guard<boost::mutex> lock( that->_mutex );
+
+    if (!that->_mapNode.get()){
+        std::cerr << "error: trying to add layer without map.\n";
+        return false;
+    }
+
+    if ( osgEarth::ModelLayer* l = that->_mapNode->getMap()->getModelLayerByName( layerId ) ) {
+	l->setVisible( visible );
+	return true;
+    }
+    assert(false && bool("unhandled layer type"));
+    return false;
+}
+
 }
 }
 

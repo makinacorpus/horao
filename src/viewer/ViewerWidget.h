@@ -20,6 +20,8 @@ struct ViewerWidget: osgViewer::Viewer
     bool addMap( osgEarth::MapNode * ) volatile;
     bool addLayer( osgEarth::Layer * ) volatile;
     bool removeLayer( osgEarth::Layer * ) volatile;
+    bool removeLayer( const std::string& ) volatile;
+    bool setVisible( const std::string&, bool ) volatile;
     void setDone( bool flag ) volatile;
 
 private:
