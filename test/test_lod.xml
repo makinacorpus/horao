@@ -1,0 +1,74 @@
+<options>
+  
+  <profile srs = "EPSG:27561"
+	   xmin="593171"
+	   ymin="120408"
+	   xmax="606195"	
+	   ymax="137078"/>
+  <!-- paris subset
+       <profile srs = "EPSG:27561"
+       xmin = "599989.159888"
+       ymin = "126363.316950"
+       xmax = "601535.566373"
+       ymax = "128628.004646"/>
+  -->
+</options>
+
+<!--    <elevation name="srtm" driver="gdal">
+     <url>/home/hme/data/paris/dem/srtm_paris.tif</url>
+     </elevation>
+-->
+
+<model name="paris" driver="feature_geom">
+  
+  <features name="bati" driver="postgis" dbname="paris_bati" user="hme" table="bati_3d_bbox" geometry_column="geom" feature_id_column="gid" build_spatial_index="false">
+  </features>
+  <!-- Set this to merge geometries of each feature, i.e. one geometry per tile -->
+  <merge_geometry>true</merge_geometry>
+  
+  <layout>
+    <tile_size_factor>15.0</tile_size_factor>
+    <level name="only" min_range="1000" max_range="10000" style="lod1"/>
+  </layout>
+  
+  
+  <styles>            
+    <style type="text/css">
+      lod1 {
+      altitude-offset: 0.1;
+      fill: #0000ff;
+      }
+    </style>
+    
+  </styles>
+  
+  <lighting>true</lighting>
+  
+</model> 
+
+<model name="paris3d" driver="feature_geom">
+  <features name="bati" driver="postgis" dbname="paris_bati" user="hme" table="bati_extru" geometry_column="geom" feature_id_column="gid" build_spatial_index="false">
+  </features>
+  <!-- Set this to merge geometries of each feature, i.e. one geometry per tile -->
+  <merge_geometry>true</merge_geometry>
+  
+  <layout>
+    <tile_size_factor>15.0</tile_size_factor>
+    <level name="only" max_range="1000" style="lod2"/>
+  </layout>
+  
+  
+  <styles>            
+    <style type="text/css">
+      lod2 {
+      altitude-offset: 0.1;
+      fill: #00ffff;
+      }
+    </style>
+    
+  </styles>
+  
+  <lighting>true</lighting>
+  
+</model> 
+
