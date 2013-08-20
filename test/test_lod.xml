@@ -21,7 +21,14 @@
 
 <model name="paris" driver="feature_geom">
   
-  <features name="bati" driver="postgis" dbname="paris_bati" user="hme" table="bati_3d_bbox" geometry_column="geom" feature_id_column="gid" build_spatial_index="false">
+<!--
+bbox table creation:
+
+create table bati_3d_bbox as select gid, case when st_zmax(geom) > 0 then st_forcelhr(st_extrude(st_envelope(geom)::geometry, 0, 0, st_zmax(geom))) else st_forcelhr(st_envelope(geom)::geometry) end as geom from bati_extru
+
+-->
+
+  <features name="bati" driver="postgis" dbname="paris_bati" user="hme" table="bati_3d_bbox" geometry_column="geom" feature_id_column="gid">
   </features>
   <!-- Set this to merge geometries of each feature, i.e. one geometry per tile -->
   <merge_geometry>true</merge_geometry>
@@ -47,7 +54,7 @@
 </model> 
 
 <model name="paris3d" driver="feature_geom">
-  <features name="bati" driver="postgis" dbname="paris_bati" user="hme" table="bati_extru" geometry_column="geom" feature_id_column="gid" build_spatial_index="false">
+  <features name="bati" driver="postgis" dbname="paris_bati" user="hme" table="bati_extru" geometry_column="geom" feature_id_column="gid">
   </features>
   <!-- Set this to merge geometries of each feature, i.e. one geometry per tile -->
   <merge_geometry>true</merge_geometry>
