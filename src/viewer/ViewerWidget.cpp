@@ -17,6 +17,8 @@ namespace Viewer {
 ViewerWidget::ViewerWidget():
    osgViewer::Viewer()
 {
+    osg::DisplaySettings::instance()->setNumMultiSamples( 8 );
+
     setUpViewInWindow(0, 0, 800, 800 );
     //setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
 
@@ -30,7 +32,6 @@ ViewerWidget::ViewerWidget():
         traits->width = 1000;
         traits->height = 800;
         traits->doubleBuffer = true;
-        traits->samples = 4;
         traits->alpha = ds->getMinimumNumAlphaBits();
         traits->stencil = ds->getMinimumNumStencilBits();
         traits->sampleBuffers = ds->getMultiSamples();
@@ -53,7 +54,6 @@ ViewerWidget::ViewerWidget():
         osg::StateSet* ss = root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
         ss->setAttribute( cf );
-        ss->setMode(GL_MULTISAMPLE, osg::StateAttribute::ON |osg::StateAttribute::OVERRIDE );
 
 #if SSAO
         {
