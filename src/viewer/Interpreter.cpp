@@ -31,10 +31,12 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
         interpreter->help();
     }
 #define COMMAND( CMD ) \
-    else if ( #CMD == cmd && !interpreter->CMD( am ) ){\
-        ERROR << "cannot " << #CMD;\
-        std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
-        Log::instance().str("");\
+    else if ( #CMD == cmd  ){\
+        if ( !interpreter->CMD( am ) ){\
+           ERROR << "cannot " << #CMD;\
+           std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
+           Log::instance().str("");\
+        }\
     }
     COMMAND(loadVectorPostgis)
     COMMAND(loadRasterGDAL)
@@ -121,10 +123,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
         ERROR << "cannot create layer";
         return false;
     }
-    _viewer->addNode( am.value("id"), node.get() );
-
-    ERROR << "not implemented";
-    return false;
+    return _viewer->addNode( am.value("id"), node.get() );
 }
 
 bool Interpreter::loadRasterGDAL(const AttributeMap & )

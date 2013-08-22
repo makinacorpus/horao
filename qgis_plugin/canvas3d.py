@@ -55,6 +55,8 @@ class Canvas3D:
 
         self.vpipe = ViewerPipe()
 
+        self.signalsConnected = False
+
     def initGui(self):
         # Create action that will start plugin configuration
         self.action = QAction(
@@ -173,7 +175,6 @@ class Canvas3D:
 
     # qgis signal : layers changed
     def onLayersChanged( self ):
-        print "layers changed"
         renderer = self.iface.mapCanvas().mapRenderer()
         # returns visible layers
         layers = renderer.layerSet()
@@ -185,15 +186,16 @@ class Canvas3D:
 
     # run method that performs all the real work
     def run(self):
-        print "Canvas 3D start"
 
         registry = QgsMapLayerRegistry.instance()
-        # when a layer is added
-        QObject.connect( registry, SIGNAL( "layerWasAdded( QgsMapLayer * )" ), self.onLayerAdded )
-        # when a layer is removed
-        QObject.connect( registry, SIGNAL( "layerWillBeRemoved( QString )" ), self.onLayerRemoved )
-        # when a layer' state changes (in particular: its visibility)
-        QObject.connect( self.iface.mapCanvas(), SIGNAL( "layersChanged()" ), self.onLayersChanged )
+        if not self.signalsConnected:
+            # when a layer is added
+            QObject.connect( registry, SIGNAL( "layerWasAdded( QgsMapLayer * )" ), self.onLayerAdded )
+            # when a layer is removed
+            QObject.connect( registry, SIGNAL( "layerWillBeRemoved( QString )" ), self.onLayerRemoved )
+            # when a layer' state changes (in particular: its visibility)
+            QObject.connect( self.iface.mapCanvas(), SIGNAL( "layersChanged()" ), self.onLayersChanged )
+            self.signalsConnected = True
 
         # set extent
         renderer = self.iface.mapCanvas().mapRenderer()

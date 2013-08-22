@@ -46,8 +46,6 @@ VectorLayerPostgis::create( const std::string & host,
         return NULL;
     }
     
-    DEBUG_TRACE
-
     return vlp.release();
 
 }

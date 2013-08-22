@@ -14,7 +14,7 @@ namespace Viewer {
 ViewerWidget::ViewerWidget():
    osgViewer::Viewer()
 {
-    osg::DisplaySettings::instance()->setNumMultiSamples( 8 );
+    //osg::DisplaySettings::instance()->setNumMultiSamples( 8 );
 
     setUpViewInWindow(0, 0, 800, 800 );
     //setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
