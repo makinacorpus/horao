@@ -1,4 +1,5 @@
 #include "ViewerWidget.h"
+#include "Log.h"
 
 #include <osg/CullFace>
 #include <osgGA/TrackballManipulator>
@@ -7,8 +8,6 @@
 #include <osg/io_utils>
 #include <osgEarth/Map>
 #include <cassert>
-
-#define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
 
 namespace Stack3d {
 namespace Viewer {
@@ -36,7 +35,6 @@ ViewerWidget::ViewerWidget():
         traits->sampleBuffers = ds->getMultiSamples();
         traits->samples = ds->getNumMultiSamples();
     }
-
 
     {
         osg::Camera* camera = getCamera();
@@ -74,26 +72,6 @@ ViewerWidget::ViewerWidget():
     realize();
 }
 
-/*
-void ViewerWidget::resizeEvent( QResizeEvent* e)
-{
-    if( _ppuout.get() )
-    {
-        const double r = _ppuout->getViewport()->aspectRatio();
-        const int h = e->size().height();
-        const int w = e->size().width();
-        if (w / r <  h ) {
-            _ppuout->getViewport()->width() = h * r;
-            _ppuout->getViewport()->height() = h;
-        }
-        else {
-            _ppuout->getViewport()->width() = w;
-            _ppuout->getViewport()->height() = w / r;
-        }
-    }
-}
-*/
-
 void ViewerWidget::frame()
 {
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( _mutex );
@@ -128,7 +106,7 @@ bool ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     
     if (!that->_mapNode.get()){
-        std::cerr << "error: trying to add layer without map.\n";
+        ERROR << "trying to add layer without map.\n";
         return false;
     }
 
@@ -160,7 +138,7 @@ bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if (!that->_mapNode.get()){
-        std::cerr << "error: trying to add layer without map.\n";
+        ERROR << "trying to add layer without map.";
         return false;
     }
 
@@ -190,7 +168,7 @@ bool ViewerWidget::removeLayer( const std::string& layerId ) volatile
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if (!that->_mapNode.get()){
-        std::cerr << "error: trying to add layer without map.\n";
+        ERROR << "trying to add layer without map.";
         return false;
     }
 
@@ -216,7 +194,7 @@ bool ViewerWidget::setVisible( const std::string& layerId, bool visible ) volati
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if (!that->_mapNode.get()){
-        std::cerr << "error: trying to add layer without map.\n";
+        ERROR << "trying to add layer without map.";
         return false;
     }
 
