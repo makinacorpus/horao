@@ -3,6 +3,9 @@
 
 #include "PostGisUtils.h"
 #include <memory>
+#include <osg/NodeCallback>
+
+#include <osg/ShapeDrawable>
 
 namespace Stack3d {
 namespace Viewer {
@@ -22,6 +25,24 @@ private:
 
     PGconn * _conn;
 
+    struct VectorLayerPostgisNodeCallback : public osg::NodeCallback
+    {
+    public:
+       virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
+       {
+          static bool once = false;
+          if (!once){
+              osg::Box* unitCube = new osg::Box( osg::Vec3(0,0,0), 1.0f);
+              osg::ShapeDrawable* unitCubeDrawable = new osg::ShapeDrawable(unitCube);
+              osg::Geode* basicShapesGeode = new osg::Geode();
+              basicShapesGeode->addDrawable(unitCubeDrawable);
+              node->asGroup()->addChild(basicShapesGeode);
+              once=true;
+          }
+          // here we can launch worker thread and add children.
+          traverse(node, nv);
+       }
+    };
 };
 
 inline
@@ -52,8 +73,10 @@ VectorLayerPostgis::create( const std::string & host,
  
 inline
 VectorLayerPostgis::VectorLayerPostgis( PGconn * conn )
-    :_conn( conn)
-{}
+    :_conn( conn )
+{
+   setUpdateCallback(new VectorLayerPostgisNodeCallback);
+}
 
 inline
 VectorLayerPostgis::~VectorLayerPostgis()
