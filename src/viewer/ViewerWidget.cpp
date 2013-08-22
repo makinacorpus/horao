@@ -6,7 +6,6 @@
 #include <osgGA/StateSetManipulator>
 #include <osgText/Text>
 #include <osg/io_utils>
-#include <osgEarth/Map>
 #include <cassert>
 
 namespace Stack3d {
@@ -45,10 +44,10 @@ ViewerWidget::ViewerWidget():
         //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
         //camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 
-        osg::ref_ptr<osg::Group> root = new osg::Group;
-        setSceneData( root.get() );
+        _root = new osg::Group;
+        setSceneData( _root.get() );
 
-        osg::StateSet* ss = root->getOrCreateStateSet();
+        osg::StateSet* ss = _root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
         ss->setAttribute( cf );
 
@@ -87,123 +86,46 @@ void ViewerWidget::setDone( bool flag ) volatile
     that->osgViewer::Viewer::setDone( flag );
 }
 
-bool ViewerWidget::addMap( osgEarth::MapNode * map ) volatile 
+bool ViewerWidget::addNode( const std::string& nodeId, osg::Node * node ) volatile 
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-    
-    that->_mapNode = map;
 
-    that->getSceneData()->asGroup()->addChild( map );
+    if ( that->_nodeMap.find( nodeId ) != that->_nodeMap.end() ){
+        ERROR << "node '" << nodeId << "' already exists";
+        return false;
+    }
+    that->_root->addChild( node );
+    that->_nodeMap.insert( std::make_pair( nodeId, node ) );
     return true;
 }
 
-bool ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile 
+bool ViewerWidget::removeNode(  const std::string& nodeId ) volatile
 {
-    assert(layer);
-
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-    
-    if (!that->_mapNode.get()){
-        ERROR << "trying to add layer without map.\n";
+
+    const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
+    if ( found == that->_nodeMap.end() ){
+        ERROR << "cannot find node '" << nodeId << "'";
         return false;
     }
-
-#define CAST_ADD_RETURN( LayerType ) \
-    if ( osgEarth::LayerType * l = dynamic_cast<osgEarth::LayerType *>(layer) ) {\
-        that->_mapNode->getMap()->add##LayerType( l ); \
-        return true;\
-    }
-
-    CAST_ADD_RETURN( ImageLayer )
-    CAST_ADD_RETURN( ElevationLayer )
-    CAST_ADD_RETURN( ModelLayer )
-    if ( osgEarth::MaskLayer * l = dynamic_cast<osgEarth::MaskLayer *>(layer) ) {
-        that->_mapNode->getMap()->addTerrainMaskLayer( l );
-        return true;
-    }
-
-    assert(false && bool("unhandled layer type"));
-#undef CAST_ADD_RETURN
-
-    return false;
+    that->_root->removeChild( found->second.get() );
+    return true;
 }
 
-bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
-{
-    assert(layer);
-
-    ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-
-    if (!that->_mapNode.get()){
-        ERROR << "trying to add layer without map.";
-        return false;
-    }
-
-#define CAST_REM_RETURN( LayerType ) \
-    if ( osgEarth::LayerType * l = dynamic_cast<osgEarth::LayerType *>(layer) ) {\
-        that->_mapNode->getMap()->remove##LayerType( l ); \
-        return true;\
-    }
-
-    CAST_REM_RETURN( ImageLayer )
-    CAST_REM_RETURN( ElevationLayer )
-    CAST_REM_RETURN( ModelLayer )
-    if ( osgEarth::MaskLayer * l = dynamic_cast<osgEarth::MaskLayer *>(layer) ) {
-        that->_mapNode->getMap()->removeTerrainMaskLayer( l );
-        return true;
-    }
-
-    assert(false && bool("unhandled layer type"));
-#undef CAST_REM_RETURN
-
-    return false;
-}
-
-bool ViewerWidget::removeLayer( const std::string& layerId ) volatile
+bool ViewerWidget::setVisible( const std::string& nodeId, bool visible ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
-    if (!that->_mapNode.get()){
-        ERROR << "trying to add layer without map.";
+    const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
+    if ( found == that->_nodeMap.end() ){
+        ERROR << "cannot find node '" << nodeId << "'";
         return false;
     }
-
-    if ( osgEarth::ModelLayer* l = that->_mapNode->getMap()->getModelLayerByName( layerId ) ) {
-	that->_mapNode->getMap()->removeModelLayer( l );
-	return true;
-    }
-    if ( osgEarth::ImageLayer* l = that->_mapNode->getMap()->getImageLayerByName( layerId ) ) {
-	that->_mapNode->getMap()->removeImageLayer( l );
-	return true;
-    }
-    if ( osgEarth::ElevationLayer* l = that->_mapNode->getMap()->getElevationLayerByName( layerId ) ) {
-	that->_mapNode->getMap()->removeElevationLayer( l );
-	return true;
-    }
-    assert(false && bool("unhandled layer type"));
-    return false;
-}
-
-bool ViewerWidget::setVisible( const std::string& layerId, bool visible ) volatile
-{
-    ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-
-    if (!that->_mapNode.get()){
-        ERROR << "trying to add layer without map.";
-        return false;
-    }
-
-    if ( osgEarth::ModelLayer* l = that->_mapNode->getMap()->getModelLayerByName( layerId ) ) {
-	l->setVisible( visible );
-	return true;
-    }
-    assert(false && bool("unhandled layer type"));
-    return false;
+    found->second->setNodeMask(visible ? 0xffffffff : 0x0);
+    return true;
 }
 
 }

@@ -127,7 +127,7 @@ bool Interpreter::loadElevation(const AttributeMap & )
 
 bool Interpreter::unloadLayer( const AttributeMap& am )
 {
-    return _viewer->removeLayer( am.value("name") );
+    return _viewer->removeNode( am.value("name") );
 }
 
 bool Interpreter::showLayer( const AttributeMap& am )
