@@ -111,14 +111,14 @@ void Interpreter::run()
 
 bool Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
-
-    if ( am.value("dbname").empty() || am.value("id").empty()) return false;
+    if ( am.value("dbname").empty() || am.value("id").empty() || am.value("query").empty() ) return false;
 
     osg::ref_ptr<osg::Node> node = VectorLayerPostgis::create( am.optionalValue("host"), 
                                                                am.optionalValue("port"),
                                                                am.value("dbname"),
                                                                am.optionalValue("user"),
-                                                               am.optionalValue("password") );
+                                                               am.optionalValue("password"),
+                                                               am.value("query") );
     if (!node.get() ){
         ERROR << "cannot create layer";
         return false;
