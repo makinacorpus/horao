@@ -1,12 +1,8 @@
 #include "Interpreter.h"
+#include "VectorLayerPostgis.h"
 
 #include <osgDB/ReadFile>
 #include <osg/Material>
-#include <osgEarth/Map>
-#include <osgEarth/MapNode>
-#include <osgEarth/XmlUtils>
-#include <osgEarthDrivers/tms/TMSOptions>
-#include <osgEarthDrivers/gdal/GDALOptions>
 
 #include <iostream>
 #include <cassert>
@@ -38,7 +34,7 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
     else if ( #CMD == cmd && !interpreter->CMD( am ) ){\
         ERROR << "cannot " << #CMD;\
         std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
-        Log::instance().clear();\
+        Log::instance().str("");\
     }
     COMMAND(loadVectorPostgis)
     COMMAND(loadRasterGDAL)
@@ -51,7 +47,7 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
     else{
         ERROR << "unknown command '" << cmd << "'.";
         std::cout << "<error msg=\"" << Log::instance().str() << "\"/>\n";
-        Log::instance().clear();
+        Log::instance().str("");
     }
 #undef COMMAND
 }
@@ -111,8 +107,22 @@ void Interpreter::run()
     _viewer->setDone(true);
 }
 
-bool Interpreter::loadVectorPostgis(const AttributeMap & )
+bool Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
+
+    if ( am.value("dbname").empty() || am.value("id").empty()) return false;
+
+    osg::ref_ptr<osg::Node> node = VectorLayerPostgis::create( am.optionalValue("host"), 
+                                                               am.optionalValue("port"),
+                                                               am.value("dbname"),
+                                                               am.optionalValue("user"),
+                                                               am.optionalValue("password") );
+    if (!node.get() ){
+        ERROR << "cannot create layer";
+        return false;
+    }
+    _viewer->addNode( am.value("id"), node.get() );
+
     ERROR << "not implemented";
     return false;
 }
@@ -131,17 +141,17 @@ bool Interpreter::loadElevation(const AttributeMap & )
 
 bool Interpreter::unloadLayer( const AttributeMap& am )
 {
-    return _viewer->removeNode( am.value("name") );
+    return am.value("id").empty() ? false : _viewer->removeNode( am.value("id") );
 }
 
 bool Interpreter::showLayer( const AttributeMap& am )
 {
-    return _viewer->setVisible( am.value("name"), true );
+    return am.value("id").empty() ? false : _viewer->setVisible( am.value("id"), true );
 }
 
 bool Interpreter::hideLayer( const AttributeMap& am )
 {
-    return _viewer->setVisible( am.value("name"), false );
+    return am.value("id").empty() ? false : _viewer->setVisible( am.value("id"), false );
 }
 
 bool Interpreter::setSymbology(const AttributeMap & )
