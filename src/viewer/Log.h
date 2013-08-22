@@ -2,11 +2,21 @@
 #define STACK3D_VIEWER_LOG_H
 
 #include <iostream>
+#include <sstream>
 
-// little trick to close error message tags, note that character '"' is not allowed en error message
-struct EndErr { ~EndErr(){std::cerr << "\"/>"<< std::endl; } };
 #define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
-#define ERROR   (EndErr(), (std::cerr << "<error   msg=\"" << __FILE__ << ":" << __LINE__ << " " ))
-#define WARNING (EndErr(), (std::cerr << "<warning msg=\"" << __FILE__ << ":" << __LINE__ << " " ))
+#define ERROR  (Stack3d::Viewer::Log::instance() << __FILE__ << ":" << __LINE__ << ": " )
+#define WARNING (std::cerr << "warning: " << __FILE__ << ":" << __LINE__  << ": " )
 
+namespace Stack3d {
+namespace Viewer {
+
+//! @note no '"' are alowed in error messages
+struct Log: std::stringstream
+{
+    static Log & instance(){ static Log log; return log;}
+};
+
+}
+}
 #endif

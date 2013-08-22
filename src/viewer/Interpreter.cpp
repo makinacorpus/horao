@@ -35,8 +35,10 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
         interpreter->help();
     }
 #define COMMAND( CMD ) \
-    else if ( #CMD == cmd ){\
-        interpreter->CMD( am ) || ERROR << "cannot " << #CMD;\
+    else if ( #CMD == cmd && !interpreter->CMD( am ) ){\
+        ERROR << "cannot " << #CMD;\
+        std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
+        Log::instance().clear();\
     }
     COMMAND(loadVectorPostgis)
     COMMAND(loadRasterGDAL)
@@ -48,6 +50,8 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
     COMMAND(setFullExtent)
     else{
         ERROR << "unknown command '" << cmd << "'.";
+        std::cout << "<error msg=\"" << Log::instance().str() << "\"/>\n";
+        Log::instance().clear();
     }
 #undef COMMAND
 }
