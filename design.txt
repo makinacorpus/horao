@@ -7,17 +7,17 @@ This is a simple spec sheet for the simple 3d viewer.
 - data loading can be long, so the interpreter/loader and the viewer will run in different threads, nodes will be added to the scenegraph when ready.
 
 The general syntax for commands is:
-command_name arg1="value1" arg2="value2" ...
+<command_name arg1="value1" arg2="value2" ... />
 
 - the command is interpreted at the end of the line with the character "\n"
-- values are surrounded by double quotes ". Values including double quotes can be escaped by \". So anti-slash must be also escaped by \\. Other special characters are espaced in C-style (\n, \r, etc.)
+- values are XML attributes. It follows the rules of XML attribute escaping (&quot; for double quotes, etc.)
 
 Each command returns a line giving their status, with the following syntax :
 - in case of success :
-ok ret_arg1="value1" ret_arg2="value2" ...
+<ok ret_arg1="value1" ret_arg2="value2" ... />
 - return arguments are optional
 - in case of failure :
-error msg="error message" (other optional arguments are accepted)
+<error msg="error message" (other optional arguments are accepted) />
 
 List of available commands :
 
