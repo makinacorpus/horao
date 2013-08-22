@@ -23,18 +23,28 @@
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 from qgis.core import *
+
+from viewer_pipe import ViewerPipe
+
 # Initialize Qt resources from file resources.py
 import resources_rc
 import os.path
 
-import subprocess
+#SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
+SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/qgis_plugin/fake_viewer.py"
 
-SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
+class LayerInfo:
+    def __init__( self ):
+        self.id = None
+        self.visibility = False
+
+    def __init__( self, id, visibility ):
+        self.id = id
+        self.visibility = visibility
 
 class Canvas3D:
 
     def __init__(self, iface):
-        self.process = None
         # Save reference to the QGIS interface
         self.iface = iface
         # initialize plugin directory
@@ -42,6 +52,8 @@ class Canvas3D:
 
         # map of layer object => visibility (bool)
         self.layers = {}
+
+        self.vpipe = ViewerPipe()
 
     def initGui(self):
         # Create action that will start plugin configuration
@@ -60,10 +72,15 @@ class Canvas3D:
         self.iface.removePluginMenu(u"&Canvas3D", self.action)
         self.iface.removeToolBarIcon(self.action)
 
-    # send command to the viewer pipe
-    def sendCommand( self, cmd ):
-        if self.process and not self.process.stdin.closed:
-            self.process.stdin.write( cmd + "\n" )
+    def processError( self, r ):
+        if r[0] == 'error':
+            QMessageBox.warning( None, "Communication error", r[1]['msg'] )
+
+    def sendToViewer( self, cmd, args ):
+        if self.vpipe:
+            r = self.vpipe.evaluate( cmd, args )
+            if r[0] != 'ok':
+                self.processError( r )
 
     def addLayer( self, layer ):
         print "layer %s added: %s" % (layer.id(), layer.source() )
@@ -85,24 +102,11 @@ class Canvas3D:
                 style['stroke'] = symL.color().name()
             elif symL.type() == 2: # polygon
                 style['fill'] = symL.color().name()
-                style['stroke'] = symL.borderColor().name()
+#                style['stroke'] = symL.borderColor().name()
 #                style['stroke-width'] = str(symL.borderWidth() / self.iface.mapCanvas().mapUnitsPerPixel() * 1000) + "px"
 #                style['stroke-linecap'] = 'square'
 
-#            style['render-depth-test'] = 'false'
-            style['altitude-clamping'] = 'terrain'
-
-            css = ''
-            for k,v in style.iteritems():
-                css = css + "%s: %s;\n" % (k,v)
-            xmlStyle = """<styles><style type="text/css">world { %s } </style></styles>""" % css
-
-            features = ''
-            if providerName == 'ogr':
-                features = """<features driver="ogr">
-                  <url>%s</url>
-                </features>""" % layer.source()
-            elif providerName == 'postgres':
+            if providerName == 'postgres':
                 # parse connection string
                 s = layer.source().split(' ')
                 connection = {}
@@ -112,18 +116,14 @@ class Canvas3D:
                         if ss[0] == 'table':
                             ss[1] = ss[1].split('.')[1]
                         connection[ ss[0] ] = ss[1].strip("'\"")
-                connectionStr = "dbname=%s tables=%s" % (connection['dbname'], connection['table'])
-                features = """<features driver="ogr">
-                    <ogr_driver>PostgreSQL</ogr_driver>
-                    <connection>PG:%s</connection>
-                  </features>""" % connectionStr
 
-            xml = """<model name="%s" driver="feature_geom">
-                  %s
-                  %s
-                </model>""" % ( layer.id(), features, xmlStyle )
-            print xml
-            self.sendCommand( xml )
+                r = self.vpipe.evaluate( 'addLayer', connection )
+                self.processError( r )
+                if r[0] == 'ok':
+                    print "*******", r[1], r[1]['id']
+                    self.layers[ layer ] = LayerInfo( r[1]['id'], False )
+                else:
+                    self.processError( r )
 
         #
         # raster layers
@@ -131,43 +131,32 @@ class Canvas3D:
         elif layer.type() == 1:
             provider = layer.dataProvider()
             if provider.name() == 'gdal':
-                xml = """<elevation name="%s" driver="gdal"><url>%s</url></elevation>""" % (layer.id(), layer.source())
-
-                self.sendCommand( xml )
-
-                xml = """<image name="%s" driver="gdal"><url>%s</url></image>""" % (layer.id(), layer.source())
-                self.sendCommand( xml )
-
-        # add it to the layer map
-        self.layers[ layer ] = True
+                r = self.vpipe.evaluate( 'addRaster', {'driver':'gdal', 'url':layer.source()} )
+                if r[0] == 'ok':
+                    self.layers[ layer ] = LayerInfo( r[1]['id'], False )
+                else:
+                    self.processError( r )
 
     def removeLayer( self, layer ):
         print "layer %s removed" % layer.id()
-        xml = """<unload name="%s"/>""" % layer.id()
+        if self.layers.haskey( layer ):
+            layerId = self.layers[ layer ].id
+            self.sendToViewer( 'unloadLayer', { 'id': layerId } )
 
-        self.sendCommand( xml )
-
-        del self.layers[ layer ]
+            del self.layers[ layer ]
 
     def setExtent( self, epsg, xmin, ymin, xmax, ymax ):
-        xml = """
-        <options>
-            <profile srs = "%s"
-               xmin = "%f"
-               ymin = "%f"
-               xmax = "%f"
-               ymax = "%f"/>
-        </options>""" % (epsg, xmin, ymin, xmax, ymax)
-        print xml
-        self.sendCommand( xml )
+        self.sendToViewer( 'setFullExtent', {'x_min': xmin, 'y_min': ymin, 'x_max' : xmax, 'y_max': ymax } )
 
     def setLayerVisibility( self, layer, visibility ):
+        if not self.layers.haskey( leyr ):
+            return
+        layerId = self.layers[ layer ].id
         if visibility:
-            xml = """<show name="%s"/>""" % layer.id()
+            self.sendToViewer( 'showLayer', {'id' : layerId } )
         else:
-            xml = """<hide name="%s"/>""" % layer.id()
-        self.sendCommand( xml )
-        self.layers[ layer ] = visibility
+            self.sendToViewer( 'hideLayer', {'id' : layerId } )
+        self.layers[ layer ].visibility = visibility
 
     # qgis signal : layer added
     def onLayerAdded( self, layer ):
@@ -213,10 +202,7 @@ class Canvas3D:
             print "no layer loaded, no extent defined, aborting"
             return
 
-        if self.process:
-            self.process.terminate()
-        
-        self.process = subprocess.Popen(SIMPLEVIEWER_BIN, stdin = subprocess.PIPE)
+        self.vpipe.start( SIMPLEVIEWER_BIN )
 
         self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
 
@@ -229,7 +215,5 @@ class Canvas3D:
         for lid, l in layers.iteritems():
             if l.id() in visibleLayers:
                 self.addLayer( l )
-            else:
-                self.layers[ l ] = False
 
 
