@@ -3,7 +3,6 @@
 
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
-#include <osgEarth/MapNode>
 
 #include <queue>
 
@@ -13,18 +12,16 @@ namespace Viewer {
 struct ViewerWidget: osgViewer::Viewer
 {
     ViewerWidget();
-    // should be called before any other layer operation
-    bool addMap( osgEarth::MapNode * ) volatile;
-    bool addLayer( osgEarth::Layer * ) volatile;
-    bool removeLayer( osgEarth::Layer * ) volatile;
-    bool removeLayer( const std::string& ) volatile;
-    bool setVisible( const std::string&, bool ) volatile;
+    bool addNode( const std::string& nodeId, osg::Node * ) volatile;
+    bool removeNode( const std::string& nodeId) volatile;
+    bool setVisible( const std::string& nodeId, bool visible) volatile;
     void setDone( bool flag ) volatile;
 
 private:
     OpenThreads::Mutex _mutex;
-    osg::ref_ptr< osgEarth::MapNode > _mapNode;
-
+    osg::ref_ptr<osg::Group> _root;
+    typedef std::map< std::string, osg::ref_ptr<osg::Node> > NodeMap;
+    NodeMap _nodeMap;
     void frame();
 };
 
