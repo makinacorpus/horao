@@ -3,10 +3,7 @@
 
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
-#include <osgPPU/UnitOut.h>
 #include <osgEarth/MapNode>
-
-#include <boost/thread.hpp>
 
 #include <queue>
 
@@ -25,8 +22,7 @@ struct ViewerWidget: osgViewer::Viewer
     void setDone( bool flag ) volatile;
 
 private:
-    boost::mutex _mutex;
-    osg::ref_ptr< osgPPU::UnitOut > _ppuout;
+    OpenThreads::Mutex _mutex;
     osg::ref_ptr< osgEarth::MapNode > _mapNode;
 
     void frame();

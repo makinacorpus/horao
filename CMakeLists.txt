@@ -47,7 +47,7 @@ find_package( GDAL REQUIRED )
 
 find_package(EXPAT REQUIRED)
 
-#-- note that SYSTEM turns -I/path to -isystem and avoid warnings in CGAL and Boost
+#-- note that SYSTEM turns -I/path to -isystem and avoid warnings in external libs
 include_directories( SYSTEM 
     ${QT_INCLUDES} 
     ${OPENSCENEGRAPH_INCLUDE_DIRS} 

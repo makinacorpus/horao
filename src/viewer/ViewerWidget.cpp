@@ -113,7 +113,7 @@ void ViewerWidget::resizeEvent( QResizeEvent* e)
 
 void ViewerWidget::frame()
 {
-    boost::lock_guard<boost::mutex> lock( _mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( _mutex );
     osgViewer::Viewer::frame();
     if (done()) DEBUG_TRACE;
 }
@@ -122,14 +122,14 @@ void ViewerWidget::setDone( bool flag ) volatile
 {
     DEBUG_TRACE
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     that->osgViewer::Viewer::setDone( flag );
 }
 
 bool ViewerWidget::addMap( osgEarth::MapNode * map ) volatile 
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     
     that->_mapNode = map;
 
@@ -142,7 +142,7 @@ bool ViewerWidget::addLayer( osgEarth::Layer * layer ) volatile
     assert(layer);
 
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     
     if (!that->_mapNode.get()){
         std::cerr << "error: trying to add layer without map.\n";
@@ -174,7 +174,7 @@ bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
     assert(layer);
 
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if (!that->_mapNode.get()){
         std::cerr << "error: trying to add layer without map.\n";
@@ -204,7 +204,7 @@ bool ViewerWidget::removeLayer( osgEarth::Layer * layer ) volatile
 bool ViewerWidget::removeLayer( const std::string& layerId ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if (!that->_mapNode.get()){
         std::cerr << "error: trying to add layer without map.\n";
@@ -230,7 +230,7 @@ bool ViewerWidget::removeLayer( const std::string& layerId ) volatile
 bool ViewerWidget::setVisible( const std::string& layerId, bool visible ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
-    boost::lock_guard<boost::mutex> lock( that->_mutex );
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if (!that->_mapNode.get()){
         std::cerr << "error: trying to add layer without map.\n";
