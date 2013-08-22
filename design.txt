@@ -21,7 +21,7 @@ Each command returns a line giving their status, with the following syntax :
 
 List of available commands :
 
-loadVector
+loadVectorPostGIS
 ==========
 
 Load a vector layer from disk/db and add it to the scene
@@ -29,9 +29,7 @@ Load a vector layer from disk/db and add it to the scene
 arguments :
 -----------
 
-* driver (mandatory): name of the driver. Only "postgis" is supported for now.
-
-arguments for the "postgis" driver :
+* id (mandatory)
 
 * dbname: name of the database
 * host
@@ -39,26 +37,17 @@ arguments for the "postgis" driver :
 * password
 * query
 
-return values :
----------------
-
-* id : internal ID of the layer
-
-loadRaster
+loadRasterGDAL
 ==========
 
 arguments :
 -----------
 
-* driver (mandatory): only "gdal" for now.
+* id (mandatory)
 
 * url
 * drape_on="layer_id" vector/elevation layer id where raster will be draped on. If not present, a new plane layer with z=0 will be created
 
-return values:
---------------
-
-* id
 
 loadElevation
 =============
@@ -69,13 +58,9 @@ arguments:
 ----------
 
 * driver (mandatory): only "gdal" for now.
+* id (mandatory)
 
 * url
-
-return values:
---------------
-
-* id
 
 unloadLayer
 ===========

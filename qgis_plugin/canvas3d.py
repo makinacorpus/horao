@@ -30,17 +30,17 @@ from viewer_pipe import ViewerPipe
 import resources_rc
 import os.path
 
-#SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
-SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/qgis_plugin/fake_viewer.py"
+SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
+#SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/qgis_plugin/fake_viewer.py"
 
 class LayerInfo:
     def __init__( self ):
         self.id = None
-        self.visibility = False
+        self.visible = False
 
     def __init__( self, id, visibility ):
         self.id = id
-        self.visibility = visibility
+        self.visible = visibility
 
 class Canvas3D:
 
@@ -50,7 +50,7 @@ class Canvas3D:
         # initialize plugin directory
         self.plugin_dir = os.path.dirname(__file__)
 
-        # map of layer object => visibility (bool)
+        # map of layer object => LayerInfo
         self.layers = {}
 
         self.vpipe = ViewerPipe()
@@ -72,21 +72,18 @@ class Canvas3D:
         self.iface.removePluginMenu(u"&Canvas3D", self.action)
         self.iface.removeToolBarIcon(self.action)
 
-    def processError( self, r ):
-        if r[0] == 'error':
-            QMessageBox.warning( None, "Communication error", r[1]['msg'] )
-
     def sendToViewer( self, cmd, args ):
         if self.vpipe:
             r = self.vpipe.evaluate( cmd, args )
             if r[0] != 'ok':
-                self.processError( r )
+                QMessageBox.warning( None, "Communication error", r[1]['msg'] )
 
     def addLayer( self, layer ):
         print "layer %s added: %s" % (layer.id(), layer.source() )
         providerName = layer.dataProvider().name()
 
         style = {}
+        ret = None
         # get layer' style
         if layer.type() == 0: # vector
             renderer = layer.rendererV2()
@@ -97,12 +94,12 @@ class Canvas3D:
             symL = sym.symbolLayer( 0 )
 
             if symL.type() == 0: # point
-                style['point-fill'] = symL.color().name()
+                style['point_fill'] = symL.color().name()
             elif symL.type() == 1: # line
-                style['stroke'] = symL.color().name()
+                style['stroke_color'] = symL.color().name()
             elif symL.type() == 2: # polygon
-                style['fill'] = symL.color().name()
-#                style['stroke'] = symL.borderColor().name()
+                style['fill_color'] = symL.color().name()
+                style['stroke_color'] = symL.borderColor().name()
 #                style['stroke-width'] = str(symL.borderWidth() / self.iface.mapCanvas().mapUnitsPerPixel() * 1000) + "px"
 #                style['stroke-linecap'] = 'square'
 
@@ -117,13 +114,15 @@ class Canvas3D:
                             ss[1] = ss[1].split('.')[1]
                         connection[ ss[0] ] = ss[1].strip("'\"")
 
-                r = self.vpipe.evaluate( 'addLayer', connection )
-                self.processError( r )
-                if r[0] == 'ok':
-                    print "*******", r[1], r[1]['id']
-                    self.layers[ layer ] = LayerInfo( r[1]['id'], False )
-                else:
-                    self.processError( r )
+                connection['id'] = layer.id()
+
+                self.sendToViewer( 'loadVectorPostgis', connection )
+                self.layers[ layer ] = LayerInfo( layer.id(), False )
+
+                # send symbology
+
+                style['id'] = layer.id()
+                self.sendToViewer( 'setSymbology', style )
 
         #
         # raster layers
@@ -131,15 +130,17 @@ class Canvas3D:
         elif layer.type() == 1:
             provider = layer.dataProvider()
             if provider.name() == 'gdal':
-                r = self.vpipe.evaluate( 'addRaster', {'driver':'gdal', 'url':layer.source()} )
-                if r[0] == 'ok':
-                    self.layers[ layer ] = LayerInfo( r[1]['id'], False )
+                # warning: band # start at 1
+                if provider.bandCount() == 1 and provider.dataType( 1 ) != QGis.Byte:
+                    self.sendToViewer( 'loadElevationGDAL', { 'id': layer.id(), 'url':layer.source()} )
                 else:
-                    self.processError( r )
+                    self.sendToViewer( 'loadImageGDAL', { 'id': layer.id(), 'url':layer.source()} )
+
+                self.layers[ layer ] = LayerInfo( layer.id(), False )
+
 
     def removeLayer( self, layer ):
-        print "layer %s removed" % layer.id()
-        if self.layers.haskey( layer ):
+        if self.layers.has_key( layer ):
             layerId = self.layers[ layer ].id
             self.sendToViewer( 'unloadLayer', { 'id': layerId } )
 
@@ -149,18 +150,19 @@ class Canvas3D:
         self.sendToViewer( 'setFullExtent', {'x_min': xmin, 'y_min': ymin, 'x_max' : xmax, 'y_max': ymax } )
 
     def setLayerVisibility( self, layer, visibility ):
-        if not self.layers.haskey( leyr ):
+        if not self.layers.has_key( layer ):
             return
         layerId = self.layers[ layer ].id
         if visibility:
             self.sendToViewer( 'showLayer', {'id' : layerId } )
         else:
             self.sendToViewer( 'hideLayer', {'id' : layerId } )
-        self.layers[ layer ].visibility = visibility
+        self.layers[ layer ].visible = visibility
 
     # qgis signal : layer added
     def onLayerAdded( self, layer ):
         self.addLayer( layer )
+        self.setLayerVisibility( layer, True )
 
     # qgis signal : layer removed
     def onLayerRemoved( self, layerId ):
@@ -175,10 +177,10 @@ class Canvas3D:
         renderer = self.iface.mapCanvas().mapRenderer()
         # returns visible layers
         layers = renderer.layerSet()
-        for layer, visible in self.layers.iteritems():
-            if layer.id() in layers and not visible:
+        for layer, p in self.layers.iteritems():
+            if layer.id() in layers and not p.visible:
                 self.setLayerVisibility( layer, True )
-            if layer.id() not in layers and visible:
+            if layer.id() not in layers and p.visible:
                 self.setLayerVisibility( layer, False )
 
     # run method that performs all the real work
@@ -199,7 +201,7 @@ class Canvas3D:
         epsg = renderer.destinationCrs().authid()
 
         if extent.isEmpty():
-            print "no layer loaded, no extent defined, aborting"
+            QMessageBox.information( None, "Canvas3D", "No layer loaded, no extent defined, aborting" )
             return
 
         self.vpipe.start( SIMPLEVIEWER_BIN )
@@ -214,6 +216,6 @@ class Canvas3D:
 
         for lid, l in layers.iteritems():
             if l.id() in visibleLayers:
-                self.addLayer( l )
+                self.onLayerAdded( l )
 
 
