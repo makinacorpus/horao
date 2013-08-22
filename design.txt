@@ -1,16 +1,176 @@
 This is a simple spec sheet for the simple 3d viewer.
 
-- layers can be added/removed (viewed or hidden) using their name as identifyer
-- effects can be added/removed using a name
-- 2D layers (raster or vector) are projected on surfaces (used as textures) that are nearly horizontal, a 3D layer to project on must be specified. If no 3D model is present, create a default plane with the same size as the layer.
-- 3D models come either from postgis DB or from file (for postgis we may use ssh type syntax user@server, but the passwd is a problem)
-#- syntax is in .json format (not fun to read/write and ~parse)
+- layers can be added/removed (viewed or hidden) using their ID
+- effects (shaders) can be added/removed using a name
+- raster data are draped on a vector layer
+- 3D models come either from postgis DB or from file
 - data loading can be long, so the interpreter/loader and the viewer will run in different threads, nodes will be added to the scenegraph when ready.
 
-load layerName url user passwd dbname table
-unload layerName
-view layerName
-hide layerName
-raise layerName
-lower layerName
+The general syntax for commands is:
+command_name arg1="value1" arg2="value2" ...
+
+- the command is interpreted at the end of the line with the character "\n"
+- values are surrounded by double quotes ". Values including double quotes can be escaped by \". So anti-slash must be also escaped by \\. Other special characters are espaced in C-style (\n, \r, etc.)
+
+Each command returns a line giving their status, with the following syntax :
+- in case of success :
+ok ret_arg1="value1" ret_arg2="value2" ...
+- return arguments are optional
+- in case of failure :
+error msg="error message" (other optional arguments are accepted)
+
+List of available commands :
+
+loadVector
+==========
+
+Load a vector layer from disk/db and add it to the scene
+
+arguments :
+-----------
+
+* driver (mandatory): name of the driver. Only "postgis" is supported for now.
+
+arguments for the "postgis" driver :
+
+* dbname: name of the database
+* host
+* user
+* password
+* query
+
+return values :
+---------------
+
+* id : internal ID of the layer
+
+loadRaster
+==========
+
+arguments :
+-----------
+
+* driver (mandatory): only "gdal" for now.
+
+* url
+* drape_on="layer_id" vector/elevation layer id where raster will be draped on. If not present, a new plane layer with z=0 will be created
+
+return values:
+--------------
+
+* id
+
+loadElevation
+=============
+
+Build a terrain, based on a raster with altitude data
+
+arguments:
+----------
+
+* driver (mandatory): only "gdal" for now.
+
+* url
+
+return values:
+--------------
+
+* id
+
+unloadLayer
+===========
+
+Unload a layer. 
+
+arguments:
+----------
+
+* id (mandatory): layer id to unload
+
+showLayer
+=========
+
+Force the display of a layer
+
+arguments:
+----------
+
+* id (mandatory): layer id to show
+
+hideLayer
+=========
+
+Force a layer to disappear. The layer is not unloaded. It can be showed afterward.
+
+arguments:
+----------
+
+* id (mandatory): layer id to show
+
+setSymbology
+============
+
+Sets the symbology of a (vector) layer
+
+arguments:
+----------
+
+* id (mandatory): layer id to modify
+
+fill_color="#rrggbb"
+stroke_color="#rrggbb"
+stroke_width
+...
+
+setFullExtent
+=============
+
+Sets the full extent of the scene and the global SRID
+
+arguments:
+----------
+
+srid (mandatory): EPSG code for the global SRID
+x_min (mandatory)
+x_max (mandatory)
+y_min (mandatory)
+y_max (mandatory)
+
+setView
+=============
+
+Sets the camera parameters
+
+arguments:
+----------
+
+x (mandatory): x position of the camera
+y (mandatory): y position of the camera
+z (mandatory): z position of the camera
+px: x position to look at
+py: y position to look at
+pz: z position to look at
+=> FIXME: or angles ?
+
+addEffect
+=========
+
+Add an effect on the scene. Effects can be global or applied on a specific layer
+
+arguments:
+----------
+
+* name (mandatory): name of the effect to apply
+* id: optional layer id to apply the effect on
+
+removeEffect
+============
+
+Remove an effect
+
+arguments:
+----------
+
+* name (mandatory)
+* id: optional layer id to remove the effect from
 
