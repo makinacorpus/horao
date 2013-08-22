@@ -38,6 +38,7 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
     else if ( #CMD == cmd && !interpreter->CMD( am ) ){\
         ERROR << "cannot " << #CMD;\
         std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
+        Log::instance().str("");\
         Log::instance().clear();\
     }
     COMMAND(loadVectorPostgis)
@@ -51,6 +52,7 @@ void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs
     else{
         ERROR << "unknown command '" << cmd << "'.";
         std::cout << "<error msg=\"" << Log::instance().str() << "\"/>\n";
+        Log::instance().str("");
         Log::instance().clear();
     }
 #undef COMMAND
@@ -131,17 +133,17 @@ bool Interpreter::loadElevation(const AttributeMap & )
 
 bool Interpreter::unloadLayer( const AttributeMap& am )
 {
-    return _viewer->removeNode( am.value("name") );
+    return _viewer->removeNode( am.value("id") );
 }
 
 bool Interpreter::showLayer( const AttributeMap& am )
 {
-    return _viewer->setVisible( am.value("name"), true );
+    return _viewer->setVisible( am.value("id"), true );
 }
 
 bool Interpreter::hideLayer( const AttributeMap& am )
 {
-    return _viewer->setVisible( am.value("name"), false );
+    return _viewer->setVisible( am.value("id"), false );
 }
 
 bool Interpreter::setSymbology(const AttributeMap & )
