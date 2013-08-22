@@ -19,29 +19,8 @@ endif()
 # dependencies
 #-----------------------------------------------------------
 
-#option( Boost_USE_AUTO_LINK "boost use autolink" OFF )
-#if( NOT ${Boost_USE_AUTO_LINK} )
-#	add_definitions( "-DBOOST_ALL_NO_LIB" )
-#endif()
-#
-#find_package( Boost COMPONENTS
-#    date_time thread 
-#    system serialization 
-#    unit_test_framework
-#    program_options 
-#    chrono 
-#    filesystem 
-#    timer REQUIRED )
-
-#find_package( Qt4 COMPONENTS QtGui QtCore QtSql REQUIRED )
-#set( QT_LIBRARIES ${QT_QTGUI_LIBRARY} ${QT_QTCORE_LIBRARY} ${QT_QTSQL_LIBRARY} )
-
 find_package( OpenSceneGraph COMPONENTS osgQt osgViewer osgGA osgDB osgUtil osgText REQUIRED )
 set(OPENSCENEGRAPH_LIBRARIES osgPPU ${OPENSCENEGRAPH_LIBRARIES})
-
-set( CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_LIST_DIR}/cmake )
-find_package( OSGEARTH REQUIRED )
-set(OSGEARTH_LIBRARIES osgEarth osgEarthUtil)
 
 find_package( GDAL REQUIRED )
 
@@ -49,15 +28,8 @@ find_package(LibXml2 REQUIRED)
 
 #-- note that SYSTEM turns -I/path to -isystem and avoid warnings in external libs
 include_directories( SYSTEM 
-    ${QT_INCLUDES} 
     ${OPENSCENEGRAPH_INCLUDE_DIRS} 
     ${LIBXML2_INCLUDE_DIR} 
-    #${Boost_INCLUDE_DIRS}	
-)
-link_directories(
-	#${Boost_LIBRARY_DIRS}	
-	${QT_LIBRARY_DIRS}	
-    ${OPENSCENEGRAPH_LIBRARY_DIRS}	
 )
 
 #-- Warnings, frounding-math and gprof  ------------------------------------------
