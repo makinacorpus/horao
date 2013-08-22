@@ -11,218 +11,192 @@
 #include <iostream>
 #include <cassert>
 
-#include <expat.h>
+#include <libxml/parser.h>
 
-#define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
+
 
 namespace Stack3d {
 namespace Viewer {
 
-struct XmlUserData {
-    explicit XmlUserData( Interpreter * i ) : depth(0), interpreter( i ) {}
-    std::string elemName;
-    std::string elemContend;
-    int depth;
-    Interpreter * interpreter;
-
-    std::string layerId;
-};
-
 inline
-void startElement(void *userData, const XML_Char *name, const XML_Char **atts){
-    XmlUserData * that = reinterpret_cast<XmlUserData * >(userData);
+void startElement(void * user_data, const xmlChar * name, const xmlChar ** attrs)
+{
+    Interpreter * interpreter = reinterpret_cast<Interpreter *>(user_data);
     
-    if ( that->depth == 1 ){
-        that->elemName = name;
+    Interpreter::AttributeMap am;
+    while( attrs && *attrs ){
+        const std::string key( reinterpret_cast<const char *>( *(attrs++) ) );
+        const std::string value( reinterpret_cast<const char *>( *(attrs++) ) );
+        am[ key ] = value;
     }
 
-    if ( that->depth >=1 ){
-        that->elemContend += "<" + std::string(name);
-        while ( *atts ){
-            const std::string key(*(atts++));
-            const std::string value(*(atts++));
-            that->elemContend += " " + key + "=\"" + value + "\"";
-	    if ( key == "name" ) {
-		that->layerId = value;
-	    }
-        }
-        that->elemContend += ">";
+    const std::string cmd( reinterpret_cast<const char *>(name) );
+    if ( "help" == cmd ){
+        interpreter->help();
     }
-    ++that->depth;
-}
-
-inline
-void endElement(void *userData, const XML_Char *name){
-    XmlUserData * that = reinterpret_cast<XmlUserData * >(userData);
-
-    --that->depth;
-    if ( that->depth >= 1 ){
-        that->elemContend += "</" + std::string(name) + ">\n";
+    else if ( "options" == cmd ){
+        interpreter->createMap( am ) || ERROR << "cannot create map.'";
     }
-
-    if ( that->depth == 1 ){
-        if ( "help" == that->elemName ){
-            that->interpreter->help();
-        }
-        else if ( "options" == that->elemName ){
-            if ( !that->interpreter->createMap( that->elemContend ) ){
-                std::cerr << "error: cannot create map.'\n";
-            }
-        }
-        else if ( "image" == that->elemName ){
-            if ( !that->interpreter->loadImage( that->elemContend ) ){
-                std::cerr << "error: cannot load image.\n";
-            }
-        }
-        else if ( "model" == that->elemName ){
-            if ( !that->interpreter->loadModel( that->elemContend ) ){
-                std::cerr << "error: cannot load model.\n";
-            }
-        }
-        else if ( "elevation" == that->elemName ){
-            if ( !that->interpreter->loadElevation( that->elemContend ) ){
-                std::cerr << "error: cannot load elevation.\n";
-            }
-        }
-        else if ( "unload" == that->elemName ){
-            if ( !that->interpreter->unload( that->layerId ) ) {
-                std::cerr << "error: cannot unload layer.\n";
-            }
-        }
-        else if ( "show" == that->elemName ){
-            if ( !that->interpreter->setVisible( that->layerId, true ) ) {
-                std::cerr << "error: cannot show layer.\n";
-            }
-        }
-        else if ( "hide" == that->elemName ){
-            if ( !that->interpreter->setVisible( that->layerId, false ) ) {
-                std::cerr << "error: cannot hide layer.\n";
-            }
-        }
-        else{
-            std::cerr << "error: unknown command '" << name << "'.\n";
-        }
-        that->elemContend = "";
+    else if ( "image" == cmd ){
+        interpreter->loadImage( am ) || ERROR << "cannot load image.";
+    }
+    else if ( "model" == cmd ){
+        interpreter->loadModel( am ) || ERROR << "cannot load model.";
+    }
+    else if ( "elevation" == cmd ){
+        interpreter->loadElevation( am ) || ERROR << "cannot load elevation.";
+    }
+    else if ( "unload" == cmd ){
+        interpreter->unload( am ) || ERROR << "cannot unload layer.";
+    }
+    else if ( "show" == cmd ){
+        interpreter->show( am ) || ERROR << "cannot show layer.";
+    }
+    else if ( "hide" == cmd ){
+        interpreter->hide( am ) || ERROR << "cannot hide layer.";
+    }
+    else{
+        ERROR << "unknown command '" << cmd << "'.";
     }
 }
 
 inline
-void characterDataHandler(void *userData, const XML_Char *s, int len){
-    XmlUserData * that = reinterpret_cast<XmlUserData * >(userData);
-   
-    if ( that->depth >= 1 ){
-        that->elemContend += std::string(s, s+len);
-    }
+static void
+warning(void *user_data, const char *msg, ...) 
+{
+    (void) user_data;
+    WARNING << msg;
 }
 
-Interpreter::Interpreter( volatile ViewerWidget * viewer, const std::string & fileName )
-    : _viewer( viewer )
-    , _inputFile( fileName ) 
+inline
+static void
+error(void *user_data, const char *msg, ...) 
+{
+    (void) user_data;
+    va_list args;
+    va_start(args, msg);
+    ERROR << va_arg(args, const char *);
+    va_end(args);
+}
+
+inline
+static void
+fatalError(void *user_data, const char *msg, ...) 
+{
+    (void) user_data;
+    va_list args;
+    va_start(args, msg);
+    ERROR << va_arg(args, const char *);
+    va_end(args);
+}
+
+Interpreter::Interpreter(volatile ViewerWidget * vw, const std::string & fileName )
+    : _viewer( vw )
+    , _inputFile( fileName )
 {}
 
-void Interpreter::operator()()
+void Interpreter::run()
 {
+    xmlSAXHandler handler;
+    handler.startElement = startElement;
+    handler.warning = warning;
+    handler.error = error;
+    handler.fatalError = fatalError;
+
     std::ifstream ifs( _inputFile.c_str() );
-    if ( !_inputFile.empty() && !ifs ) std::cout << "error: cannot open '" << _inputFile <<"'\n";
-
-    XML_Parser parser = XML_ParserCreate(NULL);
-    XmlUserData userData(this);
-    XML_SetUserData(parser, &userData);
-    XML_SetElementHandler(parser, startElement, endElement);
-    XML_SetCharacterDataHandler(parser, characterDataHandler);
-
-    std::string line("<map>");
-    XML_Parse(parser, line.c_str(), line.length(), false);
+    _inputFile.empty() || ifs || ERROR << "cannot open '" << _inputFile << "'";
+    std::string line;
     while ( std::getline( ifs, line ) || std::getline( std::cin, line ) ) {
-        if (!XML_Parse(parser, line.c_str(), line.length(), false)) {
-            std::cerr << "error: " << XML_ErrorString( XML_GetErrorCode(parser) ) << "\n";
-            userData = XmlUserData(this);
+        if ( line.empty() ) continue; // empty line
+        if (xmlSAXUserParseMemory( &handler, this, line.c_str(), line.size() ) ){
+            ERROR << " cannot parse line.";
         }
     }
-
-    line = "</map>";
-    if (!XML_Parse(parser, line.c_str(), line.length(), true)) {
-        std::cerr << "error: " << XML_ErrorString( XML_GetErrorCode(parser) ) << "\n";
-        userData = XmlUserData(this);
-    }
-    XML_ParserFree(parser);
-
     _viewer->setDone(true);
 }
 
-bool Interpreter::loadImage(const std::string & xml)
+bool Interpreter::loadImage(const AttributeMap & )
 {
     DEBUG_TRACE
     if (!_viewer){
-        std::cerr << "error: map has not been created yet.\n"; 
+        ERROR << "map has not been created yet."; 
         return false;
     }
-    osgEarth::Config conf;
-    std::istringstream iss(xml);
-    if ( !conf.fromXML( iss ) ) return false;
-    osgEarth::Config confOpt;
-    conf.getObjIfSet( "image",      confOpt ); 
-    osg::ref_ptr<osgEarth::ImageLayer> layer = new osgEarth::ImageLayer( osgEarth::ImageLayerOptions( confOpt ) );
+    //osgEarth::Config conf;
+    //std::istringstream iss(xml);
+    //if ( !conf.fromXML( iss ) ) return false;
+    //osgEarth::Config confOpt;
+    //conf.getObjIfSet( "image",      confOpt ); 
+    //osg::ref_ptr<osgEarth::ImageLayer> layer = new osgEarth::ImageLayer( osgEarth::ImageLayerOptions( confOpt ) );
 
-    return _viewer->addLayer( layer.get() );
+    //return _viewer->addLayer( layer.get() );
+    ERROR << "not implemented";
+    return false;
+
 }
 
-bool Interpreter::unload( const std::string& name )
+bool Interpreter::unload( const AttributeMap& am )
 {
-    return _viewer->removeLayer( name );
+    return _viewer->removeLayer( am["name"] );
 }
 
-bool Interpreter::setVisible( const std::string& name, bool visible )
+bool Interpreter::setVisible( const AttributeMap& am, bool visible )
 {
-    return _viewer->setVisible( name, visible );
+    return _viewer->setVisible( am["name"], visible );
 }
 
-bool Interpreter::loadModel(const std::string & xml)
-{
-    DEBUG_TRACE
-    osgEarth::Config conf;
-    std::istringstream iss(xml);
-    if ( !conf.fromXML( iss ) ) return false;
-    osgEarth::Config confOpt;
-    conf.getObjIfSet( "model",      confOpt ); 
-    osg::ref_ptr<osgEarth::ModelLayer> layer = new osgEarth::ModelLayer( osgEarth::ModelLayerOptions( confOpt ) );
-
-    return _viewer->addLayer( layer.get() );
-}
-
-bool Interpreter::loadElevation(const std::string & xml)
+bool Interpreter::loadModel(const AttributeMap & )
 {
     DEBUG_TRACE
-    osgEarth::Config conf;
-    std::istringstream iss(xml);
-    if ( !conf.fromXML( iss ) ) return false;
-    osgEarth::Config confOpt;
-    conf.getObjIfSet( "elevation",      confOpt ); 
-    osg::ref_ptr<osgEarth::ElevationLayer> layer = new osgEarth::ElevationLayer( osgEarth::ElevationLayerOptions( confOpt ) );
+    //osgEarth::Config conf;
+    //std::istringstream iss(xml);
+    //if ( !conf.fromXML( iss ) ) return false;
+    //osgEarth::Config confOpt;
+    //conf.getObjIfSet( "model",      confOpt ); 
+    //osg::ref_ptr<osgEarth::ModelLayer> layer = new osgEarth::ModelLayer( osgEarth::ModelLayerOptions( confOpt ) );
 
-    return _viewer->addLayer( layer.get() );
+    //return _viewer->addLayer( layer.get() );
+    ERROR << "not implemented";
+    return false;
 }
 
-bool Interpreter::createMap(const std::string & xml)
+bool Interpreter::loadElevation(const AttributeMap & )
 {
     DEBUG_TRACE
-    osgEarth::Config conf;
-    std::istringstream iss(xml);
-    if ( !conf.fromXML( iss ) ) return false;
+    //osgEarth::Config conf;
+    //std::istringstream iss(xml);
+    //if ( !conf.fromXML( iss ) ) return false;
+    //osgEarth::Config confOpt;
+    //conf.getObjIfSet( "elevation",      confOpt ); 
+    //osg::ref_ptr<osgEarth::ElevationLayer> layer = new osgEarth::ElevationLayer( osgEarth::ElevationLayerOptions( confOpt ) );
 
-    osgEarth::Config confOpt;
-    conf.getObjIfSet( "options",      confOpt ); 
-    confOpt.add( "name", "map" ) ;
-    confOpt.add( "type","projected" );
+    //return _viewer->addLayer( layer.get() );
+    ERROR << "not implemented";
+    return false;
+}
+
+bool Interpreter::createMap(const AttributeMap & )
+{
+    DEBUG_TRACE
+    //osgEarth::Config conf;
+    //std::istringstream iss(xml);
+    //if ( !conf.fromXML( iss ) ) return false;
+
+    //osgEarth::Config confOpt;
+    //conf.getObjIfSet( "options",      confOpt ); 
+    //confOpt.add( "name", "map" ) ;
+    //confOpt.add( "type","projected" );
    
-    osgEarth::MapOptions mapOpt( confOpt );
-    if ( !mapOpt.profile().isSet() ){
-        std::cerr << "error: did not find profile in options.\n";
-        return false;
-    }
+    //osgEarth::MapOptions mapOpt( confOpt );
+    //if ( !mapOpt.profile().isSet() ){
+    //    ERROR << "did not find profile in options.\n";
+    //    return false;
+    //}
 
-    osg::ref_ptr<osgEarth::Map> map = new osgEarth::Map( mapOpt  );
-    return _viewer->addMap( new osgEarth::MapNode( map.get() ) );
+    //osg::ref_ptr<osgEarth::Map> map = new osgEarth::Map( mapOpt  );
+    //return _viewer->addMap( new osgEarth::MapNode( map.get() ) );
+    ERROR << "not implemented";
+    return false;
 }
 
 

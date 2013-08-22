@@ -8,7 +8,7 @@ target_link_libraries( simpleViewer
     ${OSGEARTH_LIBRARIES}  
 	${OPENSCENEGRAPH_LIBRARIES}  
 	${QT_LIBRARIES}
-    ${EXPAT_LIBRARY}
+    ${LIBXML2_LIBRARIES}
 	${Boost_LIBRARIES}
 )
 install( TARGETS simpleViewer DESTINATION bin )

@@ -1,5 +1,4 @@
 #include "ViewerWidget.h"
-#include "SimpleSSAO.h"
 
 #include <osg/CullFace>
 #include <osgGA/TrackballManipulator>
@@ -7,8 +6,8 @@
 #include <osgText/Text>
 #include <osg/io_utils>
 #include <osgEarth/Map>
+#include <cassert>
 
-#define SSAO 0
 #define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
 
 namespace Stack3d {
@@ -54,22 +53,6 @@ ViewerWidget::ViewerWidget():
         osg::StateSet* ss = root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
         ss->setAttribute( cf );
-
-#if SSAO
-        {
-            const bool showAOMap = false;
-            osgPPU::Unit* lastUnit = NULL;
-            osgPPU::Processor* ppu = SimpleSSAO::createPipeline( traits->width, traits->height, getCamera(), lastUnit, showAOMap );
-
-            _ppuout = new osgPPU::UnitOut();
-            _ppuout->setName( "PipelineResult" );
-            _ppuout->setInputTextureIndexForViewportReference( -1 ); // need this here to get viewport from camera
-            _ppuout->setViewport( new osg::Viewport( 0,0,traits->width, traits->height ) );
-            lastUnit->addChild( _ppuout.get() );
-
-            root->addChild( ppu );
-        }
-#endif
 
         // create sunlight
         setLightingMode( osg::View::SKY_LIGHT );
