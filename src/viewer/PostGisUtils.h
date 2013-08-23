@@ -5,7 +5,7 @@
 
 #include <cassert>
 
-#include <osg/Node>
+#include <osg/Geometry>
 
 #include <libpq-fe.h>
 #include <postgres_fe.h>
@@ -81,7 +81,7 @@ private:
 
 };
 
-osg::Node * createGeometry( const LWGEOM * lwgeom );
+osg::Geometry * createGeometry( const LWGEOM * lwgeom );
 
 
 inline

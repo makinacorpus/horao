@@ -12,7 +12,6 @@
 namespace Stack3d {
 namespace Viewer {
 
-
 //! @note no '"' are alowed in error messages
 struct VectorLayerPostgis: osg::Group
 {
@@ -32,9 +31,9 @@ private:
     PGconn * _conn;
     const std::string _query;
 
-    struct VectorLayerPostgisNodeCallback : public osg::NodeCallback
+
+    struct VectorLayerPostgisNodeCallback: osg::NodeCallback
     {
-    public:
        virtual void operator()(osg::Node* node, osg::NodeVisitor* nv)
        {
           VectorLayerPostgis * vlp = dynamic_cast<VectorLayerPostgis *>( node );
@@ -48,8 +47,11 @@ private:
               vlp->addChild(basicShapesGeode);
               once=true;
               std::cerr << tileQuery( vlp->query(), -1, -2, 1, 2 ) << "\n";
+
           }
           // here we can launch worker thread and add children.
+          //std::cout <<  nv->getDistanceToViewPoint(getCenter(),true) << "\n";
+
           traverse(node, nv);
        }
     };
