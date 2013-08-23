@@ -25,33 +25,6 @@ namespace Stack3d {
 namespace Viewer {
 
 // utility class mainly for RAII of PGresult
-struct QueryResult
-{
-    QueryResult( PGconn * conn, const std::string & query )
-        : _res( PQexec( conn, query.c_str() ) )
-        , _error( PQresultErrorMessage(_res) )
-    {
-        //nop
-    }
-
-    ~QueryResult() 
-    { 
-        PQclear(_res);
-    }
-
-    operator bool() const { return _error.empty(); }
-
-    PGresult * get(){ return _res; }
-
-    const std::string & error() const { return _error; }
-
-private:
-    PGresult * _res;
-    const std::string _error;
-    // non copyable
-    QueryResult( const QueryResult & );
-    QueryResult operator=( const QueryResult &); 
-};
 
 //utility class for RAII of LWGEOM
 struct Lwgeom

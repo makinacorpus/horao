@@ -14,6 +14,7 @@ target_link_libraries( simpleViewer
 
 add_library( osgdb_postgis MODULE 
     ReaderWriterPOSTGIS.cpp 
+    PostGisUtils.cpp
 )
 set_target_properties( osgdb_postgis PROPERTIES DEBUG_POSTFIX "d" )
 target_link_libraries( osgdb_postgis
