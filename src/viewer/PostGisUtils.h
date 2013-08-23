@@ -54,7 +54,7 @@ private:
 
 };
 
-osg::Geometry * createGeometry( const LWGEOM * lwgeom );
+osg::Geometry * createGeometry( const LWGEOM * lwgeom, const osg::Matrixd & layerToWord );
 
 
 inline

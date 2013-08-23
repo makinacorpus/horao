@@ -25,8 +25,9 @@ namespace Stack3d {
 namespace Viewer {
 
 
+
 inline
-void transformLocalizeAppend( const POINTARRAY * array, osg::Vec3Array * target )
+void transformLocalizeAppend( const POINTARRAY * array, osg::Vec3Array * target, const osg::Matrixd & layerToWord )
 {
     //! @todo add actual transformation of points here
     const int numPoints = array->npoints;
@@ -35,19 +36,19 @@ void transformLocalizeAppend( const POINTARRAY * array, osg::Vec3Array * target 
         const POINT3DZ p3D = getPoint3dz(array, v );
         const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
         if ( target->size() == 0 || p != target->back() ) // remove dupes
-            target->push_back( p );
+            target->push_back( p * layerToWord );
     }
 }
 
 inline
-osg::Geometry * createGeometry( const LWPOLY * lwpoly )
+osg::Geometry * createGeometry( const LWPOLY * lwpoly, const osg::Matrixd & layerToWord )
 {
     assert( lwpoly );
     const int numRings = lwpoly->nrings;
     if ( numRings == 0 ) return NULL;
     
     osg::ref_ptr<osg::Vec3Array> allPoints = new osg::Vec3Array();
-    transformLocalizeAppend( lwpoly->rings[0], allPoints.get() );
+    transformLocalizeAppend( lwpoly->rings[0], allPoints.get(), layerToWord );
 
     osg::ref_ptr<osg::Geometry> osgGeom = new osg::Geometry();
     osgGeom->setUseVertexBufferObjects(true);
@@ -56,7 +57,7 @@ osg::Geometry * createGeometry( const LWPOLY * lwpoly )
     for ( int r = 1; r < numRings; r++)
     {
         osgGeom->addPrimitiveSet( new osg::DrawArrays( GL_POLYGON, allPoints->size(), lwpoly->rings[r]->npoints ) );
-        transformLocalizeAppend( lwpoly->rings[r], allPoints.get() );
+        transformLocalizeAppend( lwpoly->rings[r], allPoints.get(), layerToWord );
     }
     
     osgGeom->setVertexArray( allPoints.get() );
@@ -94,14 +95,14 @@ osg::Geometry * createGeometry( const LWPOLY * lwpoly )
 }
 
 inline
-osg::Geometry * createGeometry( const LWTRIANGLE * lwtriangle )
+osg::Geometry * createGeometry( const LWTRIANGLE * lwtriangle, const osg::Matrixd & layerToWord )
 {
     assert( lwtriangle );
     osg::ref_ptr<osg::Geometry> osgGeom = new osg::Geometry();
     osgGeom->setUseVertexBufferObjects(true);
 
     osg::ref_ptr<osg::Vec3Array> allPoints = new osg::Vec3Array();
-    transformLocalizeAppend( lwtriangle->points, allPoints.get() );
+    transformLocalizeAppend( lwtriangle->points, allPoints.get(), layerToWord );
     osgGeom->setVertexArray( allPoints.get() );
 
     osgGeom->addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 0, 3 ) );
@@ -147,7 +148,7 @@ osg::Geometry * createGeometry( const LWTRIANGLE * lwtriangle )
 //}
 
 template < typename MULTITYPE >
-osg::Geometry * createGeometry( const MULTITYPE * lwmulti )
+osg::Geometry * createGeometry( const MULTITYPE * lwmulti, const osg::Matrixd & layerToWord )
 {
     assert( lwmulti );
     const int numGeom = lwmulti->ngeoms;
@@ -165,7 +166,7 @@ osg::Geometry * createGeometry( const MULTITYPE * lwmulti )
     
     for ( int g = 0; g<numGeom; g++ )
     {
-        osg::ref_ptr<osg::Geometry> geom = createGeometry( lwmulti->geoms[g] );
+        osg::ref_ptr<osg::Geometry> geom = createGeometry( lwmulti->geoms[g], layerToWord );
         // merge geometries
         const osg::Vec3Array * vtx = dynamic_cast<const osg::Vec3Array *>(geom->getVertexArray());
         const osg::Vec3Array * nrml = dynamic_cast<const osg::Vec3Array *>(geom->getNormalArray());
@@ -202,29 +203,29 @@ osg::Geometry * createGeometry( const MULTITYPE * lwmulti )
 //}
 
 
-osg::Geometry* createGeometry( const LWGEOM * lwgeom )
+osg::Geometry* createGeometry( const LWGEOM * lwgeom, const osg::Matrixd & layerToWord )
 {
     osg::ref_ptr<osg::Geometry> geom;
     //! @todo actually create the geometry
     switch ( lwgeom->type )
     {
     case POLYGONTYPE:
-        geom = createGeometry( lwgeom_as_lwpoly( lwgeom ) );
+        geom = createGeometry( lwgeom_as_lwpoly( lwgeom ), layerToWord );
         break;
     case MULTIPOLYGONTYPE:
-        geom = createGeometry( lwgeom_as_lwmpoly( lwgeom ) );
+        geom = createGeometry( lwgeom_as_lwmpoly( lwgeom ), layerToWord );
         break;
     case TRIANGLETYPE:
-        geom = createGeometry( lwgeom_as_lwtriangle( lwgeom ) );
+        geom = createGeometry( lwgeom_as_lwtriangle( lwgeom ), layerToWord );
         break;
     case TINTYPE:
-        geom = createGeometry( lwgeom_as_lwtin( lwgeom ) );
+        geom = createGeometry( lwgeom_as_lwtin( lwgeom ), layerToWord );
         break;
     case POLYHEDRALSURFACETYPE:
-        geom = createGeometry( lwgeom_as_lwpsurface( lwgeom ) );
+        geom = createGeometry( lwgeom_as_lwpsurface( lwgeom ), layerToWord );
         break;
     case COLLECTIONTYPE:
-        geom = createGeometry( lwgeom_as_lwcollection( lwgeom ) );
+        geom = createGeometry( lwgeom_as_lwcollection( lwgeom ), layerToWord );
         break;
     case POINTTYPE:
         assert(false && "POINTTYPE not implemented");

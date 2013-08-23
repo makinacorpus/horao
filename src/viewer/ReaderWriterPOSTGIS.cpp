@@ -120,17 +120,32 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         std::cout << "got " << numFeatures << " features\n";
         
 
+        // define transfo  layerToWord
+        osg::Matrixd layerToWord;
+        {
+            osg::Vec3d center(0,0,0);
+            if ( !( std::stringstream( am["center"] ) >> center.x() >> center.y() ) ){
+                std::cerr << "failed to obtain center=\""<< am["center"] <<"\"\n";
+                return ReadResult::ERROR_IN_READING_FILE;
+            }
+            layerToWord.makeTranslate( -center );
+        }
+
+        std::cout << "converting " << numFeatures << " features from postgis...\n";
         osg::ref_ptr<osg::Geode> group = new osg::Geode();
         for( int i=0; i<numFeatures; i++ )
         {
             const char * wkb = PQgetvalue( res.get(), i, geomIdx );
             Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
             assert( lwgeom.get() );
-            osg::ref_ptr<osg::Geometry> geom = Stack3d::Viewer::createGeometry( lwgeom.get() );
+            osg::ref_ptr<osg::Geometry> geom = Stack3d::Viewer::createGeometry( lwgeom.get(), layerToWord );
             assert( geom.get() );
             geom->setName( PQgetvalue( res.get(), i, featureIdIdx) );
             group->addDrawable( geom.get() );
         }
+
+ 
+        std::cout << "done\n";
 
 
         return group.release();
