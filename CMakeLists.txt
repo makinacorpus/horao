@@ -3,6 +3,7 @@ project( 3dstack )
 
 set( CMAKE_DEBUG_POSTFIX "d" )
 SET(EXECUTABLE_OUTPUT_PATH ${PROJECT_BINARY_DIR}/bin)
+SET(LIBRARY_OUTPUT_PATH ${PROJECT_BINARY_DIR}/lib)
 
 #----------------------------------------------------------------------------
 # build options
