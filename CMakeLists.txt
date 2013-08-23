@@ -31,6 +31,7 @@ include_directories( SYSTEM
     ${OPENSCENEGRAPH_INCLUDE_DIRS} 
     ${LIBXML2_INCLUDE_DIR} 
     ${PostgreSQL_INCLUDE_DIR}
+    ${CMAKE_CURRENT_LIST_DIR}/src
 )
 
 #-- Warnings, frounding-math and gprof  ------------------------------------------
@@ -48,4 +49,5 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 add_subdirectory( src )
+add_subdirectory( test )
 
