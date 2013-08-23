@@ -24,19 +24,68 @@
 namespace Stack3d {
 namespace Viewer {
 
+// nop callback
+void CALLBACK noStripCallback(GLboolean)
+{
+}
+//
+// Custom tessellator that is used to have GL_TRIANGLES instead of GL_TRIANGLE_FAN or GL_TRIANGLE_STRIP
+// GLU says if there is a GLU_TESS_EDGE_FLAG, it will only use GL_TRIANGLES
+class CustomTessellator : public osgUtil::Tessellator
+{
+public:
+    virtual void beginTessellation()
+    {
+	reset();
+	
+	if(!_tobj) _tobj = osg::gluNewTess();
+	
+	osg::gluTessCallback(_tobj, GLU_TESS_VERTEX_DATA, (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::vertexCallback);
+	osg::gluTessCallback(_tobj, GLU_TESS_BEGIN_DATA,  (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::beginCallback);
+	osg::gluTessCallback(_tobj, GLU_TESS_END_DATA,    (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::endCallback);
+	osg::gluTessCallback(_tobj, GLU_TESS_COMBINE_DATA,(osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::combineCallback);
+	osg::gluTessCallback(_tobj, GLU_TESS_ERROR_DATA,  (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::errorCallback);
+	//Here is the New TESS Callback :
+	//Force to only creates triangles
+	osg::gluTessCallback(_tobj, GLU_TESS_EDGE_FLAG,  (osg::GLU_TESS_CALLBACK) noStripCallback);
+	if(tessNormal.length()>0.0) osg::gluTessNormal(_tobj, tessNormal.x(), tessNormal.y(), tessNormal.z());
+	osg::gluTessBeginPolygon(_tobj,this);  
+    }
+};
+
+
+
+    
+std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
+{
+    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
+    return o;
+}
 
 
 inline
-void transformLocalizeAppend( const POINTARRAY * array, osg::Vec3Array * target, const osg::Matrixd & layerToWord )
+void transformLocalizeAppend( const POINTARRAY * array, osg::Vec3Array * target, const osg::Matrixd & layerToWord, bool reverse = false )
 {
     //! @todo add actual transformation of points here
     const int numPoints = array->npoints;
-    for( int v = 0; v < numPoints; v++ )
-    {
-        const POINT3DZ p3D = getPoint3dz(array, v );
-        const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
-        if ( target->size() == 0 || p != target->back() ) // remove dupes
-            target->push_back( p * layerToWord );
+    
+    if (reverse){
+        for( int v = numPoints-2; v >= 0; v-- )
+        {
+            const POINT3DZ p3D = getPoint3dz(array, v );
+            const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
+            if ( target->size() == 0 || p != target->back() ) // remove dupes
+                target->push_back( p * layerToWord );
+        }
+    }
+    else{
+        for( int v = 0; v < numPoints-1; v++ )
+        {
+            const POINT3DZ p3D = getPoint3dz(array, v );
+            const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
+            if ( target->size() == 0 || p != target->back() ) // remove dupes
+                target->push_back( p * layerToWord );
+        }
     }
 }
 
@@ -51,18 +100,19 @@ osg::Geometry * createGeometry( const LWPOLY * lwpoly, const osg::Matrixd & laye
     transformLocalizeAppend( lwpoly->rings[0], allPoints.get(), layerToWord );
 
     osg::ref_ptr<osg::Geometry> osgGeom = new osg::Geometry();
-    osgGeom->setUseVertexBufferObjects(true);
-    osgGeom->addPrimitiveSet( new osg::DrawArrays( GL_POLYGON, 0, lwpoly->rings[0]->npoints ) );
+    //osgGeom->setUseVertexBufferObjects(true);
 
-    for ( int r = 1; r < numRings; r++)
+    for ( int r = 0; r < numRings; r++)
     {
-        osgGeom->addPrimitiveSet( new osg::DrawArrays( GL_POLYGON, allPoints->size(), lwpoly->rings[r]->npoints ) );
-        transformLocalizeAppend( lwpoly->rings[r], allPoints.get(), layerToWord );
+        osg::ref_ptr<osg::DrawElementsUInt> elem =  new osg::DrawElementsUInt( GL_POLYGON, lwpoly->rings[r]->npoints );
+        osgGeom->addPrimitiveSet( elem.get() );
+        for (int i=0; i<lwpoly->rings[r]->npoints; i++) elem->setElement(i,i);
+        transformLocalizeAppend( lwpoly->rings[r], allPoints.get(), layerToWord, r > 0 );
     }
     
     osgGeom->setVertexArray( allPoints.get() );
 
-    osgUtil::Tessellator tess;
+    CustomTessellator tess;
     tess.setTessellationType( osgUtil::Tessellator::TESS_TYPE_POLYGONS );
     tess.setWindingType( osgUtil::Tessellator::TESS_WINDING_POSITIVE );
     tess.retessellatePolygons( *osgGeom );
@@ -105,7 +155,9 @@ osg::Geometry * createGeometry( const LWTRIANGLE * lwtriangle, const osg::Matrix
     transformLocalizeAppend( lwtriangle->points, allPoints.get(), layerToWord );
     osgGeom->setVertexArray( allPoints.get() );
 
-    osgGeom->addPrimitiveSet( new osg::DrawArrays( GL_TRIANGLES, 0, 3 ) );
+    osg::ref_ptr<osg::DrawElementsUInt> elem = new osg::DrawElementsUInt( GL_TRIANGLES, 3 );
+    osgGeom->addPrimitiveSet( elem.get() );
+    for (int i=0; i<3; i++) elem->setElement(i,i);
 
     osg::Vec3 normal( 0.0, 0.0, 0.0 );
     const int sz = 3;
@@ -147,6 +199,26 @@ osg::Geometry * createGeometry( const LWTRIANGLE * lwtriangle, const osg::Matrix
 //    return point.release();
 //}
 
+osg::PrimitiveSet * offsetIndices( osg::PrimitiveSet * primitiveSet, size_t offset)
+{
+    // we convert the DrawElements to UInt to avoid indices overflows
+    osg::ref_ptr<osg::PrimitiveSet> elem;
+    if ( const osg::DrawElementsUByte * elemUByte 
+            = dynamic_cast<osg::DrawElementsUByte*>( primitiveSet ) ){
+        elem = new osg::DrawElementsUInt( elemUByte->getMode(), elemUByte->begin(), elemUByte->end());
+    }
+    else if ( const osg::DrawElementsUShort * elemUShort 
+            = dynamic_cast<osg::DrawElementsUShort*>( primitiveSet ) ){
+        elem = new osg::DrawElementsUInt( elemUShort->getMode(), elemUShort->begin(), elemUShort->end());
+    }
+    else{
+        elem = primitiveSet;
+    }
+
+    elem->offsetIndices( offset );
+    return elem.release();
+}
+
 template < typename MULTITYPE >
 osg::Geometry * createGeometry( const MULTITYPE * lwmulti, const osg::Matrixd & layerToWord )
 {
@@ -161,13 +233,12 @@ osg::Geometry * createGeometry( const MULTITYPE * lwmulti, const osg::Matrixd & 
     osg::ref_ptr<osg::Vec3Array> normals( new osg::Vec3Array );
 	multi->setNormalArray( normals.get() );
 	multi->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
-    osg::ref_ptr<osg::DrawElements> elements( new osg::DrawElementsUByte( GL_TRIANGLES ) );
-    multi->addPrimitiveSet( elements.release() );
     
     for ( int g = 0; g<numGeom; g++ )
     {
+        const int offset = vertices->size();
         osg::ref_ptr<osg::Geometry> geom = createGeometry( lwmulti->geoms[g], layerToWord );
-        // merge geometries
+        // merge 
         const osg::Vec3Array * vtx = dynamic_cast<const osg::Vec3Array *>(geom->getVertexArray());
         const osg::Vec3Array * nrml = dynamic_cast<const osg::Vec3Array *>(geom->getNormalArray());
         assert(vtx && nrml);
@@ -177,10 +248,8 @@ osg::Geometry * createGeometry( const MULTITYPE * lwmulti, const osg::Matrixd & 
         }
 
         // modify vtx indice of primitives
-        const int offset = vertices->size();
         for( size_t s=0; s<geom->getNumPrimitiveSets(); s++ ){
-            geom->getPrimitiveSet(s)->offsetIndices( offset );
-            multi->addPrimitiveSet( geom->getPrimitiveSet(s) );
+            multi->addPrimitiveSet( offsetIndices( geom->getPrimitiveSet(s), offset) );
         }
     }
     return multi.release();

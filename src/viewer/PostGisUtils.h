@@ -56,6 +56,8 @@ private:
 
 osg::Geometry * createGeometry( const LWGEOM * lwgeom, const osg::Matrixd & layerToWord );
 
+osg::PrimitiveSet * offsetIndices( osg::PrimitiveSet * primitiveSet, size_t offset);
+
 
 inline
 const std::string 

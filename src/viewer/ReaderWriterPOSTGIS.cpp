@@ -4,6 +4,7 @@
 #include <osgDB/ReaderWriter>
 #include <osgDB/Registry>
 #include <osg/ShapeDrawable>
+#include <osgUtil/Optimizer>
 
 #include <iostream>
 #include <sstream>
@@ -133,6 +134,21 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
         std::cout << "converting " << numFeatures << " features from postgis...\n";
         osg::ref_ptr<osg::Geode> group = new osg::Geode();
+
+        osg::ref_ptr<osg::Geometry> multi = new osg::Geometry();
+
+        multi->setUseVertexBufferObjects(true);
+
+        osg::ref_ptr<osg::Vec3Array> vertices( new osg::Vec3Array );
+        multi->setVertexArray( vertices.get() );
+        osg::ref_ptr<osg::Vec3Array> normals( new osg::Vec3Array );
+        multi->setNormalArray( normals.get() );
+        multi->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
+ 
+        const bool mergeGeometries = true;
+        
+        osg::Timer timer;
+        timer.setStartTick();
         for( int i=0; i<numFeatures; i++ )
         {
             const char * wkb = PQgetvalue( res.get(), i, geomIdx );
@@ -141,12 +157,55 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             osg::ref_ptr<osg::Geometry> geom = Stack3d::Viewer::createGeometry( lwgeom.get(), layerToWord );
             assert( geom.get() );
             geom->setName( PQgetvalue( res.get(), i, featureIdIdx) );
-            group->addDrawable( geom.get() );
+            if (!mergeGeometries){
+                group->addDrawable( geom.get() );
+            }
+            else {
+                const int offset = vertices->size();
+                const osg::Vec3Array * vtx = dynamic_cast<const osg::Vec3Array *>(geom->getVertexArray());
+                const osg::Vec3Array * nrml = dynamic_cast<const osg::Vec3Array *>(geom->getNormalArray());
+                assert(vtx && nrml);
+                for ( size_t v=0; v < vtx->size(); v++ ) {
+                   vertices->push_back( (*vtx)[v] );
+                   normals->push_back( (*nrml)[v] );
+                }
+                // modify vtx indice of primitives
+                for( size_t s=0; s<geom->getNumPrimitiveSets(); s++ ){
+                    //int setWithSameMode = -1;
+                    //for( size_t t=0; t<multi->getNumPrimitiveSets(); t++ ){
+                    //    if ( geom->getPrimitiveSet(s)->getMode() == multi->getPrimitiveSet(s)->getMode() ){
+                    //        setWithSameMode = t;
+                    //        break;
+                    //    }
+                    //}
+
+                    //if ( setWithSameMode < 0 ){
+                        multi->addPrimitiveSet( Stack3d::Viewer::offsetIndices( geom->getPrimitiveSet(s), offset) );
+                    //}
+                    //else {
+
+                    //}
+                }
+            }
         }
+        std::cout << "time to convert " << timer.time_s() << "sec\n";
+
+        if (mergeGeometries) group->addDrawable( multi.get() );
+
+        timer.setStartTick();
+        osgUtil::Optimizer optimizer;
+        optimizer.optimize(group.get(), 
+              //  osgUtil::Optimizer::ALL_OPTIMIZATIONS 
+              //  osgUtil::Optimizer::REMOVE_REDUNDANT_NODES 
+              //| osgUtil::Optimizer::TRISTRIP_GEOMETRY 
+              osgUtil::Optimizer::MERGE_GEOMETRY 
+              );
+        std::cout << "time to optimize " << timer.time_s() << "sec\n";
+
 
  
         std::cout << "done\n";
-
+//return ReadResult::ERROR_IN_READING_FILE;
 
         return group.release();
     }
