@@ -24,8 +24,6 @@ void errorreporter(const char* fmt, va_list ap)
 namespace Stack3d {
 namespace Viewer {
 
-// utility class mainly for RAII of PGresult
-
 //utility class for RAII of LWGEOM
 struct Lwgeom
 {
@@ -87,6 +85,30 @@ tileQuery( std::string query, float xmin, float xmax, float ymin, float ymax )
     return query;
 }
 
+
+// temporary structure to avois creation of many mall osg::geometries (slow)
+struct TriangleMesh
+{
+    TriangleMesh( const osg::Matrixd & layerToWord )
+        : _layerToWord(layerToWord)
+    {}
+
+    void push_back( const LWTRIANGLE * );
+    void push_back( const LWPOLY * );
+    void push_back( const LWGEOM * );
+    
+    osg::Geometry * createGeometry() const;
+
+
+private:
+    std::vector<osg::Vec3> _vtx;
+    std::vector<osg::Vec3> _nrml;
+    std::vector<unsigned> _tri;
+    const osg::Matrixd _layerToWord;
+
+    template< typename MULTITYPE >
+    void push_back( const MULTITYPE * );
+};
 
 }
 }

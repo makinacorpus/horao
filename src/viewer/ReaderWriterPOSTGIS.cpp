@@ -135,6 +135,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         std::cout << "converting " << numFeatures << " features from postgis...\n";
         osg::ref_ptr<osg::Geode> group = new osg::Geode();
 
+        /*
         osg::ref_ptr<osg::Geometry> multi = new osg::Geometry();
 
         multi->setUseVertexBufferObjects(true);
@@ -188,19 +189,35 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
                 }
             }
         }
+        if (mergeGeometries) group->addDrawable( multi.get() );
+        */
+
+        osg::Timer timer;
+        timer.setStartTick();
+
+        Stack3d::Viewer::TriangleMesh mesh( layerToWord );
+
+        for( int i=0; i<numFeatures; i++ )
+        {
+            const char * wkb = PQgetvalue( res.get(), i, geomIdx );
+            Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
+            assert( lwgeom.get() );
+            mesh.push_back( lwgeom.get() );
+        }
+        group->addDrawable( mesh.createGeometry() );
+
         std::cout << "time to convert " << timer.time_s() << "sec\n";
 
-        if (mergeGeometries) group->addDrawable( multi.get() );
 
-        timer.setStartTick();
-        osgUtil::Optimizer optimizer;
-        optimizer.optimize(group.get(), 
-              //  osgUtil::Optimizer::ALL_OPTIMIZATIONS 
-              //  osgUtil::Optimizer::REMOVE_REDUNDANT_NODES 
-              //| osgUtil::Optimizer::TRISTRIP_GEOMETRY 
-              osgUtil::Optimizer::MERGE_GEOMETRY 
-              );
-        std::cout << "time to optimize " << timer.time_s() << "sec\n";
+        //timer.setStartTick();
+        //osgUtil::Optimizer optimizer;
+        //optimizer.optimize(group.get(), 
+        //      //  osgUtil::Optimizer::ALL_OPTIMIZATIONS 
+        //      //  osgUtil::Optimizer::REMOVE_REDUNDANT_NODES 
+        //      //| osgUtil::Optimizer::TRISTRIP_GEOMETRY 
+        //      osgUtil::Optimizer::MERGE_GEOMETRY 
+        //      );
+        //std::cout << "time to optimize " << timer.time_s() << "sec\n";
 
 
  

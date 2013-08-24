@@ -24,16 +24,22 @@
 namespace Stack3d {
 namespace Viewer {
 
+std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
+{
+    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
+    return o;
+}
+
 // nop callback
 void CALLBACK noStripCallback(GLboolean)
 {
 }
+
 //
 // Custom tessellator that is used to have GL_TRIANGLES instead of GL_TRIANGLE_FAN or GL_TRIANGLE_STRIP
 // GLU says if there is a GLU_TESS_EDGE_FLAG, it will only use GL_TRIANGLES
-class CustomTessellator : public osgUtil::Tessellator
+struct CustomTessellator : osgUtil::Tessellator
 {
-public:
     virtual void beginTessellation()
     {
 	reset();
@@ -53,14 +59,100 @@ public:
     }
 };
 
+static CustomTessellator tess;
 
-
-    
-std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
+void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )
 {
-    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
-    return o;
+    assert( lwtriangle );
+    const int offset = _vtx.size();
+    for( int v = 0; v < 3; v++ )
+    {
+        const POINT3DZ p3D = getPoint3dz( lwtriangle->points, v );
+        const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
+        _vtx.push_back( p * _layerToWord );
+    }
+
+    for (int i=0; i<3; i++) _tri.push_back( i + offset );
+
+    osg::Vec3 normal( 0.0, 0.0, 0.0 );
+    for ( int i = 0; i < 3; ++i ) {
+       osg::Vec3 pi = _vtx[offset+i];
+       osg::Vec3 pj = _vtx[offset +( (i+1) % 3 ) ];
+       normal[0] += ( pi[1] - pj[1] ) * ( pi[2] + pj[2] );
+       normal[1] += ( pi[2] - pj[2] ) * ( pi[0] + pj[0] );
+       normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
+    }
+    normal.normalize();
+    for (int i=0; i<3; i++) _nrml.push_back( normal );
 }
+
+template< typename MULTITYPE >
+void TriangleMesh::push_back( const MULTITYPE * lwmulti )
+{
+    assert( lwmulti );
+    const int numGeom = lwmulti->ngeoms;
+    for ( int g = 0; g<numGeom; g++ ) push_back( lwmulti->geoms[g] );
+
+}
+
+void TriangleMesh::push_back( const LWGEOM * lwgeom )
+{
+    osg::ref_ptr<osg::Geometry> geom;
+    //! @todo actually create the geometry
+    switch ( lwgeom->type )
+    {
+    case TRIANGLETYPE:
+        push_back( lwgeom_as_lwtriangle( lwgeom ) );
+        break;
+    case TINTYPE:
+        push_back( lwgeom_as_lwtin( lwgeom ) );
+        break;
+    case COLLECTIONTYPE:
+        push_back( lwgeom_as_lwcollection( lwgeom ) );
+        break;
+    case MULTIPOLYGONTYPE:
+        assert(false && "MULTIPOLYGONTYPE not implemented");
+    case POLYHEDRALSURFACETYPE:
+        assert(false && "POLYHEDRALSURFACETYPE not implemented");
+    case POLYGONTYPE:
+        assert(false && "POLYGONTYPE not implemented");
+    case POINTTYPE:
+        assert(false && "POINTTYPE not implemented");
+    case MULTIPOINTTYPE:
+        assert(false && "MULTIPOINTTYPE not implemented");
+    case LINETYPE:
+        assert(false && "LINETYPE not implemented");
+    case MULTILINETYPE:
+        assert(false && "MULTIPOINTTYPE not implemented");
+    case MULTISURFACETYPE:
+        assert(false && "MULTISURFACETYPE not implemented");
+    case MULTICURVETYPE:
+        assert(false && "MULTICURVETYPE not implemented");
+    case CIRCSTRINGTYPE:
+        assert(false && "CIRCSTRINGTYPE not implemented");
+    case COMPOUNDTYPE:
+        assert(false && "COMPOUNDTYPE not implemented");
+    case CURVEPOLYTYPE:
+        assert(false && "CURVEPOLYTYPE not implemented");
+    }
+}
+
+osg::Geometry * TriangleMesh::createGeometry() const
+{
+    osg::ref_ptr<osg::Geometry> multi = new osg::Geometry();
+    multi->setUseVertexBufferObjects(true);
+
+    osg::ref_ptr<osg::Vec3Array> vertices( new osg::Vec3Array( _vtx.begin(), _vtx.end()) );
+    multi->setVertexArray( vertices.get() );
+    osg::ref_ptr<osg::Vec3Array> normals( new osg::Vec3Array( _nrml.begin(), _nrml.end()) );
+    multi->setNormalArray( normals.get() );
+    multi->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
+    
+    osg::ref_ptr<osg::DrawElementsUInt> elem = new osg::DrawElementsUInt( GL_TRIANGLES, _tri.begin(), _tri.end() );
+    multi->addPrimitiveSet( elem.get() );
+    return multi.release();
+}
+
 
 
 inline
@@ -69,23 +161,14 @@ void transformLocalizeAppend( const POINTARRAY * array, osg::Vec3Array * target,
     //! @todo add actual transformation of points here
     const int numPoints = array->npoints;
     
-    if (reverse){
-        for( int v = numPoints-2; v >= 0; v-- )
-        {
-            const POINT3DZ p3D = getPoint3dz(array, v );
-            const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
-            if ( target->size() == 0 || p != target->back() ) // remove dupes
-                target->push_back( p * layerToWord );
-        }
-    }
-    else{
-        for( int v = 0; v < numPoints-1; v++ )
-        {
-            const POINT3DZ p3D = getPoint3dz(array, v );
-            const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
-            if ( target->size() == 0 || p != target->back() ) // remove dupes
-                target->push_back( p * layerToWord );
-        }
+    const int offset = target->size();
+    target->resize( offset + numPoints - 1);
+    for( int v = 0; v < numPoints - 1; v++ )
+    {
+        const POINT3DZ p3D = getPoint3dz(array, reverse ? numPoints - 1 - v : v );
+        const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
+        if ( target->size() == 0 || p != target->back() ) // remove dupes
+            (*target)[offset + v] =  p * layerToWord;
     }
 }
 
@@ -100,7 +183,7 @@ osg::Geometry * createGeometry( const LWPOLY * lwpoly, const osg::Matrixd & laye
     transformLocalizeAppend( lwpoly->rings[0], allPoints.get(), layerToWord );
 
     osg::ref_ptr<osg::Geometry> osgGeom = new osg::Geometry();
-    //osgGeom->setUseVertexBufferObjects(true);
+    osgGeom->setUseVertexBufferObjects(true);
 
     for ( int r = 0; r < numRings; r++)
     {
@@ -112,7 +195,6 @@ osg::Geometry * createGeometry( const LWPOLY * lwpoly, const osg::Matrixd & laye
     
     osgGeom->setVertexArray( allPoints.get() );
 
-    CustomTessellator tess;
     tess.setTessellationType( osgUtil::Tessellator::TESS_TYPE_POLYGONS );
     tess.setWindingType( osgUtil::Tessellator::TESS_WINDING_POSITIVE );
     tess.retessellatePolygons( *osgGeom );
@@ -254,6 +336,7 @@ osg::Geometry * createGeometry( const MULTITYPE * lwmulti, const osg::Matrixd & 
     }
     return multi.release();
 }
+
 
 // specialization for multipoint to create a pointset
 //Symbology::PointSet * createGeometry( const LWMPOINT * lwmulti )
