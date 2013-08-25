@@ -143,16 +143,14 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
     assert( lwpoly );
     const int numRings = lwpoly->nrings;
     if ( numRings == 0 ) return;
-    
-    Tessellator tesselator ;
-    
-    gluTessBeginPolygon( tesselator._tess, this); // with NULL data
 
     size_t totalNumVtx = 0;
     for ( int r = 0; r < numRings; r++) totalNumVtx += lwpoly->rings[r]->npoints;
     std::vector< GLdouble > coord( totalNumVtx*3 );
 
     // retesselate and add rings
+    Tessellator tesselator ;
+    gluTessBeginPolygon( tesselator._tess, this); // with NULL data
     size_t currIdx = 0;
     for ( int r = 0; r < numRings; r++) {
         gluTessBeginContour(tesselator._tess);                      // outer quad
