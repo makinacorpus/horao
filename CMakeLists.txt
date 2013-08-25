@@ -21,6 +21,7 @@ endif()
 #-----------------------------------------------------------
 
 find_package( OpenSceneGraph COMPONENTS osgQt osgViewer osgGA osgDB osgUtil osgText osgTerrain REQUIRED )
+find_package( GLU REQUIRED )
 find_package( GDAL REQUIRED )
 find_package( LibXml2 REQUIRED)
 find_package( PostgreSQL REQUIRED)

@@ -21,6 +21,7 @@
 
 #include <osgUtil/Tessellator>
 
+
 namespace Stack3d {
 namespace Viewer {
 
@@ -31,8 +32,10 @@ std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
 }
 
 // nop callback
-void CALLBACK noStripCallback(GLboolean)
+void CALLBACK noStripCallback(GLboolean flag)
 {
+    //assert( flag );
+    (void)flag;
 }
 
 //
@@ -50,7 +53,7 @@ struct CustomTessellator : osgUtil::Tessellator
 	osg::gluTessCallback(_tobj, GLU_TESS_BEGIN_DATA,  (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::beginCallback);
 	osg::gluTessCallback(_tobj, GLU_TESS_END_DATA,    (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::endCallback);
 	osg::gluTessCallback(_tobj, GLU_TESS_COMBINE_DATA,(osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::combineCallback);
-	osg::gluTessCallback(_tobj, GLU_TESS_ERROR_DATA,  (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::errorCallback);
+osg::gluTessCallback(_tobj, GLU_TESS_ERROR_DATA,  (osg::GLU_TESS_CALLBACK) osgUtil::Tessellator::errorCallback);
 	//Here is the New TESS Callback :
 	//Force to only creates triangles
 	osg::gluTessCallback(_tobj, GLU_TESS_EDGE_FLAG,  (osg::GLU_TESS_CALLBACK) noStripCallback);
@@ -86,6 +89,112 @@ void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )
     for (int i=0; i<3; i++) _nrml.push_back( normal );
 }
 
+
+void CALLBACK tessBeginCB(GLenum which)
+{
+    //assert( which == GL_TRIANGLES );
+    (void)which;
+}
+
+void CALLBACK tessEndCB(GLenum which)
+{
+    //assert( which == GL_TRIANGLES );
+    (void)which;
+}
+
+void CALLBACK tessErrorCB(GLenum errorCode)
+{
+    const GLubyte * errorStr = gluErrorString(errorCode);
+    ERROR << errorStr;
+}
+
+void CALLBACK tessVertexCB(const GLvoid *vtx, void *data)
+{
+    // cast back to double type
+    const GLdouble * p = (const GLdouble*)vtx;
+    TriangleMesh * that = (TriangleMesh * )data;
+    that->_tri.push_back( that->_vtx.size() );
+    that->_vtx.push_back( osg::Vec3( p[0], p[1], p[2] ) );
+}
+
+
+// for RAII off GLUtesselator
+struct Tessellator
+{
+    Tessellator(){
+        _tess = gluNewTess();
+        gluTessProperty(_tess, GLU_TESS_WINDING_RULE, GLU_TESS_WINDING_POSITIVE);
+        //gluTessProperty(_tess, GLU_TESS_BOUNDARY_ONLY, GL_TRUE); 
+        gluTessCallback(_tess, GLU_TESS_BEGIN, (void (*)(void))tessBeginCB);
+        gluTessCallback(_tess, GLU_TESS_END, (void (*)(void))tessEndCB);
+        gluTessCallback(_tess, GLU_TESS_ERROR, (void (*)(void))tessErrorCB);
+        gluTessCallback(_tess, GLU_TESS_VERTEX_DATA, (void (*)())tessVertexCB);
+	    gluTessCallback(_tess, GLU_TESS_EDGE_FLAG,  (void (*)())noStripCallback);
+    }
+    ~Tessellator(){
+        gluDeleteTess(_tess);
+    }
+
+    GLUtesselator * _tess;
+};
+
+void TriangleMesh::push_back( const LWPOLY * lwpoly )
+{
+    assert( lwpoly );
+    const int numRings = lwpoly->nrings;
+    if ( numRings == 0 ) return;
+    
+    Tessellator tesselator ;
+    
+    gluTessBeginPolygon( tesselator._tess, this); // with NULL data
+
+    size_t totalNumVtx = 0;
+    for ( int r = 0; r < numRings; r++) totalNumVtx += lwpoly->rings[r]->npoints;
+    std::vector< GLdouble > coord( totalNumVtx*3 );
+
+    // retesselate and add rings
+    size_t currIdx = 0;
+    for ( int r = 0; r < numRings; r++) {
+        gluTessBeginContour(tesselator._tess);                      // outer quad
+        const int ringSize = lwpoly->rings[r]->npoints;
+        for( int v = 0; v < ringSize - 1; v++ ) {
+            const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v ? v : ringSize - 1 - v );
+            const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
+            coord[currIdx + 0] = p.x();
+            coord[currIdx + 1] = p.y();
+            coord[currIdx + 2] = p.z();
+            gluTessVertex(tesselator._tess, &(coord[currIdx]), &(coord[currIdx]));
+            currIdx+=3;
+        }
+        gluTessEndContour(tesselator._tess);                      // outer quad
+    }
+    gluTessEndPolygon(tesselator._tess);
+
+
+    //// Normal computation.
+    //// Not completely correct, but better than no normals at all. TODO: update this
+    //// to generate a proper normal vector in ECEF mode.
+    ////
+    //// We cannot accurately rely on triangles from the tessellation, since we could have
+    //// very "degraded" triangles (close to a line), and the normal computation would be bad.
+    //// In this case, we would have to average the normal vector over each triangle of the polygon.
+    //// The Newell's formula is simpler and more direct here.
+    osg::Vec3 normal( 0.0, 0.0, 0.0 );
+    const int sz = lwpoly->rings[0]->npoints;
+    for ( int i = 0; i < sz; ++i )
+    {
+       const POINT3DZ p3Di = getPoint3dz( lwpoly->rings[0], i );
+       const POINT3DZ p3Dj = getPoint3dz( lwpoly->rings[0], (i+1) % sz );
+       const osg::Vec3 pi= osg::Vec3( p3Di.x, p3Di.y, p3Di.z ) * _layerToWord;
+       const osg::Vec3 pj= osg::Vec3( p3Dj.x, p3Dj.y, p3Dj.z ) * _layerToWord;
+       normal[0] += ( pi[1] - pj[1] ) * ( pi[2] + pj[2] );
+       normal[1] += ( pi[2] - pj[2] ) * ( pi[0] + pj[0] );
+       normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
+    }
+    normal.normalize();
+    _nrml.resize( _vtx.size(), normal );
+}
+
 template< typename MULTITYPE >
 void TriangleMesh::push_back( const MULTITYPE * lwmulti )
 {
@@ -101,39 +210,21 @@ void TriangleMesh::push_back( const LWGEOM * lwgeom )
     //! @todo actually create the geometry
     switch ( lwgeom->type )
     {
-    case TRIANGLETYPE:
-        push_back( lwgeom_as_lwtriangle( lwgeom ) );
-        break;
-    case TINTYPE:
-        push_back( lwgeom_as_lwtin( lwgeom ) );
-        break;
-    case COLLECTIONTYPE:
-        push_back( lwgeom_as_lwcollection( lwgeom ) );
-        break;
-    case MULTIPOLYGONTYPE:
-        assert(false && "MULTIPOLYGONTYPE not implemented");
-    case POLYHEDRALSURFACETYPE:
-        assert(false && "POLYHEDRALSURFACETYPE not implemented");
-    case POLYGONTYPE:
-        assert(false && "POLYGONTYPE not implemented");
-    case POINTTYPE:
-        assert(false && "POINTTYPE not implemented");
-    case MULTIPOINTTYPE:
-        assert(false && "MULTIPOINTTYPE not implemented");
-    case LINETYPE:
-        assert(false && "LINETYPE not implemented");
-    case MULTILINETYPE:
-        assert(false && "MULTIPOINTTYPE not implemented");
-    case MULTISURFACETYPE:
-        assert(false && "MULTISURFACETYPE not implemented");
-    case MULTICURVETYPE:
-        assert(false && "MULTICURVETYPE not implemented");
-    case CIRCSTRINGTYPE:
-        assert(false && "CIRCSTRINGTYPE not implemented");
-    case COMPOUNDTYPE:
-        assert(false && "COMPOUNDTYPE not implemented");
-    case CURVEPOLYTYPE:
-        assert(false && "CURVEPOLYTYPE not implemented");
+    case TRIANGLETYPE:          push_back( lwgeom_as_lwtriangle( lwgeom ) ); break;
+    case TINTYPE:               push_back( lwgeom_as_lwtin( lwgeom ) ); break;
+    case COLLECTIONTYPE:        push_back( lwgeom_as_lwcollection( lwgeom ) ); break;
+    case MULTIPOLYGONTYPE:      push_back( lwgeom_as_lwmpoly( lwgeom ) ); break;
+    case POLYHEDRALSURFACETYPE: push_back( lwgeom_as_lwpsurface( lwgeom ) ); break;
+    case POLYGONTYPE:           push_back( lwgeom_as_lwpoly( lwgeom ) ); break;
+    case POINTTYPE:             assert(false && "POINTTYPE not implemented");
+    case MULTIPOINTTYPE:        assert(false && "MULTIPOINTTYPE not implemented");
+    case LINETYPE:              assert(false && "LINETYPE not implemented");
+    case MULTILINETYPE:         assert(false && "MULTIPOINTTYPE not implemented");
+    case MULTISURFACETYPE:      assert(false && "MULTISURFACETYPE not implemented");
+    case MULTICURVETYPE:        assert(false && "MULTICURVETYPE not implemented");
+    case CIRCSTRINGTYPE:        assert(false && "CIRCSTRINGTYPE not implemented");
+    case COMPOUNDTYPE:          assert(false && "COMPOUNDTYPE not implemented");
+    case CURVEPOLYTYPE:         assert(false && "CURVEPOLYTYPE not implemented");
     }
 }
 

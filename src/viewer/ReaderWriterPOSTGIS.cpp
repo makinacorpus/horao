@@ -78,6 +78,11 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
         std::cerr << "loaded plugin postgis for [" << file_name << "]\n";
 
+        osg::Timer timer;
+
+        std::cout << "connecting to postgis...\n";
+        timer.setStartTick();
+
         typedef std::map< std::string, std::string > AttributeMap;
         AttributeMap am;
         std::stringstream line(file_name);
@@ -96,6 +101,11 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             std::cerr << "failed to open database with conn_info=\"" << am["conn_info"] << "\"\n";
             return ReadResult::FILE_NOT_FOUND;
         }
+
+        std::cout << "connected in " <<  timer.time_s() << "sec\n";
+
+        std::cout << "execute request...\n";
+        timer.setStartTick();
 
         PostgisConnection::QueryResult res( conn, am["query"].c_str() );
         if (!res){
@@ -118,8 +128,10 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         }
 
         const int numFeatures = PQntuples( res.get() );
-        std::cout << "got " << numFeatures << " features\n";
-        
+        std::cout << "got " << numFeatures << " features in " << timer.time_s() << "sec\n";
+
+        std::cout << "converting " << numFeatures << " features from postgis...\n";
+        timer.setStartTick();
 
         // define transfo  layerToWord
         osg::Matrixd layerToWord;
@@ -132,68 +144,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             layerToWord.makeTranslate( -center );
         }
 
-        std::cout << "converting " << numFeatures << " features from postgis...\n";
         osg::ref_ptr<osg::Geode> group = new osg::Geode();
-
-        /*
-        osg::ref_ptr<osg::Geometry> multi = new osg::Geometry();
-
-        multi->setUseVertexBufferObjects(true);
-
-        osg::ref_ptr<osg::Vec3Array> vertices( new osg::Vec3Array );
-        multi->setVertexArray( vertices.get() );
-        osg::ref_ptr<osg::Vec3Array> normals( new osg::Vec3Array );
-        multi->setNormalArray( normals.get() );
-        multi->setNormalBinding( osg::Geometry::BIND_PER_VERTEX );
- 
-        const bool mergeGeometries = true;
-        
-        osg::Timer timer;
-        timer.setStartTick();
-        for( int i=0; i<numFeatures; i++ )
-        {
-            const char * wkb = PQgetvalue( res.get(), i, geomIdx );
-            Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
-            assert( lwgeom.get() );
-            osg::ref_ptr<osg::Geometry> geom = Stack3d::Viewer::createGeometry( lwgeom.get(), layerToWord );
-            assert( geom.get() );
-            geom->setName( PQgetvalue( res.get(), i, featureIdIdx) );
-            if (!mergeGeometries){
-                group->addDrawable( geom.get() );
-            }
-            else {
-                const int offset = vertices->size();
-                const osg::Vec3Array * vtx = dynamic_cast<const osg::Vec3Array *>(geom->getVertexArray());
-                const osg::Vec3Array * nrml = dynamic_cast<const osg::Vec3Array *>(geom->getNormalArray());
-                assert(vtx && nrml);
-                for ( size_t v=0; v < vtx->size(); v++ ) {
-                   vertices->push_back( (*vtx)[v] );
-                   normals->push_back( (*nrml)[v] );
-                }
-                // modify vtx indice of primitives
-                for( size_t s=0; s<geom->getNumPrimitiveSets(); s++ ){
-                    //int setWithSameMode = -1;
-                    //for( size_t t=0; t<multi->getNumPrimitiveSets(); t++ ){
-                    //    if ( geom->getPrimitiveSet(s)->getMode() == multi->getPrimitiveSet(s)->getMode() ){
-                    //        setWithSameMode = t;
-                    //        break;
-                    //    }
-                    //}
-
-                    //if ( setWithSameMode < 0 ){
-                        multi->addPrimitiveSet( Stack3d::Viewer::offsetIndices( geom->getPrimitiveSet(s), offset) );
-                    //}
-                    //else {
-
-                    //}
-                }
-            }
-        }
-        if (mergeGeometries) group->addDrawable( multi.get() );
-        */
-
-        osg::Timer timer;
-        timer.setStartTick();
 
         Stack3d::Viewer::TriangleMesh mesh( layerToWord );
 
@@ -206,23 +157,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         }
         group->addDrawable( mesh.createGeometry() );
 
-        std::cout << "time to convert " << timer.time_s() << "sec\n";
-
-
-        //timer.setStartTick();
-        //osgUtil::Optimizer optimizer;
-        //optimizer.optimize(group.get(), 
-        //      //  osgUtil::Optimizer::ALL_OPTIMIZATIONS 
-        //      //  osgUtil::Optimizer::REMOVE_REDUNDANT_NODES 
-        //      //| osgUtil::Optimizer::TRISTRIP_GEOMETRY 
-        //      osgUtil::Optimizer::MERGE_GEOMETRY 
-        //      );
-        //std::cout << "time to optimize " << timer.time_s() << "sec\n";
-
-
- 
-        std::cout << "done\n";
-//return ReadResult::ERROR_IN_READING_FILE;
+        std::cout << "converted " << numFeatures << " features in " << timer.time_s() << "sec\n";
 
         return group.release();
     }

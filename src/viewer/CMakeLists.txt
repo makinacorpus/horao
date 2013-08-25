@@ -10,6 +10,8 @@ target_link_libraries( simpleViewer
     ${LIBXML2_LIBRARIES}
     ${PostgreSQL_LIBRARY}
     ${LWGEOM_LIBRARY}
+    ${OPENGL_glu_LIBRARY}
+    ${OPENGL_gl_LIBRARY}
 )
 
 add_library( osgdb_postgis MODULE 
@@ -22,6 +24,8 @@ target_link_libraries( osgdb_postgis
     ${LIBXML2_LIBRARIES}
     ${PostgreSQL_LIBRARY}
     ${LWGEOM_LIBRARY}
+    ${OPENGL_glu_LIBRARY}
+    ${OPENGL_gl_LIBRARY}
 )
 set_target_properties(osgdb_postgis PROPERTIES PREFIX "")
 install( TARGETS  simpleViewer osgdb_postgis

@@ -4,6 +4,7 @@
 #include "Log.h"
 
 #include <cassert>
+#include <GL/glu.h>
 
 #include <osg/Geometry>
 
@@ -14,6 +15,10 @@
 extern "C" {
 #include <liblwgeom.h>
 }
+
+#ifndef CALLBACK
+#define CALLBACK
+#endif
 
 inline
 void errorreporter(const char* fmt, va_list ap)
@@ -108,6 +113,8 @@ private:
 
     template< typename MULTITYPE >
     void push_back( const MULTITYPE * );
+
+    friend void CALLBACK tessVertexCB(const GLvoid *vtx, void *data);
 };
 
 }
