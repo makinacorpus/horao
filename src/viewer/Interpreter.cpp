@@ -111,18 +111,44 @@ void Interpreter::run()
 
 bool Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
-    if ( am.value("dbname").empty() || am.value("id").empty() || am.value("query").empty() ) return false;
+    if ( am.value("id").empty() 
+      || am.value("conn_info").empty() 
+      || am.value("center").empty()
+      ) return false;
 
-    osg::ref_ptr<osg::Node> node = VectorLayerPostgis::create( am.optionalValue("host"), 
-                                                               am.optionalValue("port"),
-                                                               am.value("dbname"),
-                                                               am.optionalValue("user"),
-                                                               am.optionalValue("password"),
-                                                               am.value("query") );
+    osg::ref_ptr<osg::Node> node;
+
+    if ( ! am.optionalValue("lod").empty() ){
+        std::vector< std::pair< std::string, double > > lodDistance;
+        if ( am.value("extend").empty() ||  am.value("tile_size").empty() ) return false;
+        std::stringstream levels(am.optionalValue("lod"));
+        std::string l;
+        while ( std::getline( levels, l, ' ' ) ){
+           lodDistance.push_back( std::make_pair( l, atof(l.c_str() ) ) );
+           if ( am.value( "feature_id_"+l ).empty() || am.value("geometry_column_"+l).empty()) return false;
+
+        }
+        assert( false && "not implemented" );
+    }
+    else{
+      if ( am.value("feature_id").empty() 
+        || am.value("geometry_column").empty() 
+        || am.value("query").empty() ) return false;
+        const std::string pseudoFile = "conn_info=\""       + am.value("conn_info")       + "\" "
+                                     + "center=\""          + am.value("center")          + "\" "
+                                     + "feature_id=\""      + am.value("feature_id")      + "\" "
+                                     + "geometry_column=\"" + am.value("geometry_column") + "\" "
+                                     + "query=\""           + am.value("query")           + "\".postgisd";
+        std::cout << "loading: " << pseudoFile << "\n";
+        node = osgDB::readNodeFile( pseudoFile );
+
+    }
+
     if (!node.get() ){
         ERROR << "cannot create layer";
         return false;
     }
+
     return _viewer->addNode( am.value("id"), node.get() );
 }
 
