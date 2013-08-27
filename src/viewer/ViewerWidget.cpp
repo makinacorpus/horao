@@ -3,6 +3,7 @@
 
 #include <osg/CullFace>
 #include <osgGA/TrackballManipulator>
+#include <osgGA/TerrainManipulator>
 #include <osgGA/StateSetManipulator>
 #include <osgText/Text>
 #include <osg/io_utils>
@@ -17,7 +18,7 @@ ViewerWidget::ViewerWidget():
     //osg::DisplaySettings::instance()->setNumMultiSamples( 8 );
 
     setUpViewInWindow(0, 0, 800, 800 );
-    //setThreadingModel( osgViewer::CompositeViewer::SingleThreaded );
+    setThreadingModel( osgViewer::Viewer::SingleThreaded );
 
     osg::ref_ptr<osg::GraphicsContext::Traits> traits = new osg::GraphicsContext::Traits;
     {
@@ -49,23 +50,24 @@ ViewerWidget::ViewerWidget():
 
         osg::StateSet* ss = _root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
-        ss->setAttribute( cf );
+        ss->setAttribute( cf, osg::StateAttribute::OVERRIDE );
 
         // create sunlight
         setLightingMode( osg::View::SKY_LIGHT );
         getLight()->setPosition(osg::Vec4(1000,0,1000,0));
         //getLight()->setDirection(osg::Vec3(-1,0,-1));
-        getLight()->setAmbient(osg::Vec4( 0.8,0.8,0.8,1 ));
-        getLight()->setDiffuse(osg::Vec4( 0.8,0.8,0.8,1 ));
+        getLight()->setAmbient(osg::Vec4( 0.6,0.6,0.6,1 ));
+        getLight()->setDiffuse(osg::Vec4( 0.6,0.6,0.6,1 ));
 
         addEventHandler( new osgViewer::StatsHandler );
-        setCameraManipulator( new osgGA::TrackballManipulator );
+        setCameraManipulator( new osgGA::TerrainManipulator );
         
         addEventHandler(new osgViewer::WindowSizeHandler);
         addEventHandler(new osgViewer::StatsHandler);
         addEventHandler( new osgGA::StateSetManipulator( getCamera()->getOrCreateStateSet()) );
         addEventHandler(new osgViewer::ScreenCaptureHandler);
 
+        setFrameStamp( new osg::FrameStamp );
 
     }
     realize();

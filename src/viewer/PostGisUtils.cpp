@@ -25,11 +25,6 @@
 namespace Stack3d {
 namespace Viewer {
 
-std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
-{
-    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
-    return o;
-}
 
 // nop callback
 void CALLBACK noStripCallback(GLboolean flag)

@@ -11,6 +11,9 @@
 #include <algorithm>
 #include <map>
 
+
+#define DEBUG_OUT if (0) std::cout
+
 // for RAII of connection
 struct PostgisConnection
 {
@@ -76,11 +79,11 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         if ( !acceptsExtension(osgDB::getLowerCaseFileExtension( file_name )))
             return ReadResult::FILE_NOT_HANDLED;
 
-        std::cerr << "loaded plugin postgis for [" << file_name << "]\n";
+        std::cout << "loaded plugin postgis for [" << file_name << "]\n";
 
         osg::Timer timer;
 
-        std::cout << "connecting to postgis...\n";
+        DEBUG_OUT << "connecting to postgis...\n";
         timer.setStartTick();
 
         typedef std::map< std::string, std::string > AttributeMap;
@@ -92,7 +95,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
                 && std::getline( line, value, '"' )){
             // remove spaces in key
             key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
-            std::cout << "key=\"" << key << "\" value=\"" << value << "\"\n";
+            DEBUG_OUT << "key=\"" << key << "\" value=\"" << value << "\"\n";
             am.insert( std::make_pair( key, value ) );
         }
 
@@ -102,9 +105,9 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             return ReadResult::FILE_NOT_FOUND;
         }
 
-        std::cout << "connected in " <<  timer.time_s() << "sec\n";
+        DEBUG_OUT << "connected in " <<  timer.time_s() << "sec\n";
 
-        std::cout << "execute request...\n";
+        DEBUG_OUT << "execute request...\n";
         timer.setStartTick();
 
         PostgisConnection::QueryResult res( conn, am["query"].c_str() );
@@ -128,9 +131,9 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         }
 
         const int numFeatures = PQntuples( res.get() );
-        std::cout << "got " << numFeatures << " features in " << timer.time_s() << "sec\n";
+        DEBUG_OUT << "got " << numFeatures << " features in " << timer.time_s() << "sec\n";
 
-        std::cout << "converting " << numFeatures << " features from postgis...\n";
+        DEBUG_OUT << "converting " << numFeatures << " features from postgis...\n";
         timer.setStartTick();
 
         // define transfo  layerToWord
@@ -157,7 +160,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         }
         group->addDrawable( mesh.createGeometry() );
 
-        std::cout << "converted " << numFeatures << " features in " << timer.time_s() << "sec\n";
+        DEBUG_OUT << "converted " << numFeatures << " features in " << timer.time_s() << "sec\n";
 
         return group.release();
     }

@@ -61,10 +61,16 @@ osg::Geometry * createGeometry( const LWGEOM * lwgeom, const osg::Matrixd & laye
 
 osg::PrimitiveSet * offsetIndices( osg::PrimitiveSet * primitiveSet, size_t offset);
 
+inline
+std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
+{
+    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
+    return o;
+}
 
 inline
 const std::string 
-tileQuery( std::string query, float xmin, float xmax, float ymin, float ymax )
+tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
 { 
     const char * spacialMetaComments[] = {"/**WHERE TILE &&", "/**AND TILE &&"};
 

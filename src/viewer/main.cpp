@@ -1,13 +1,15 @@
 #include "Interpreter.h"
+#include <X11/Xlib.h>
 
 using namespace Stack3d::Viewer;
 
 int main( int argc, char** argv )
 {
-    ViewerWidget viewer;
-    Interpreter interpreter( &viewer, argc >= 2 ? argv[1] : "" );
+    XInitThreads();
+    osg::ref_ptr<ViewerWidget> viewer = new ViewerWidget;
+    Interpreter interpreter( viewer.get(), argc >= 2 ? argv[1] : "" );
     interpreter.startThread();
-    const int ret = viewer.run();
+    const int ret = viewer->run();
     interpreter.join();
     return ret;
 }
