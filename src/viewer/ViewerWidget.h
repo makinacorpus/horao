@@ -16,6 +16,8 @@ struct ViewerWidget: osgViewer::Viewer
     bool removeNode( const std::string& nodeId) volatile;
     bool setVisible( const std::string& nodeId, bool visible) volatile;
     void setDone( bool flag ) volatile;
+    bool setStateSet( const std::string& nodeId, osg::StateSet * ) volatile;
+
 
 private:
     OpenThreads::Mutex _mutex;

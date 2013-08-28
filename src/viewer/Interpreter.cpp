@@ -162,9 +162,6 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
             osg::Geode* basicShapesGeode = new osg::Geode();
             basicShapesGeode->addDrawable(unitCubeDrawable);
 
-            osg::Vec4Array* colours = new osg::Vec4Array(1);
-            (*colours)[0].set(1.0f,1.0f,1.0,1.0f);
-
             osg::StateSet* stateset = new osg::StateSet;
             basicShapesGeode->setStateSet( stateset );
             osg::Material* material = new osg::Material;
@@ -227,10 +224,50 @@ bool Interpreter::hideLayer( const AttributeMap& am )
     return am.value("id").empty() ? false : _viewer->setVisible( am.value("id"), false );
 }
 
-bool Interpreter::setSymbology(const AttributeMap & )
+
+// copied from osgearth
+const osg::Vec4 htmlColor( const std::string & html )
 {
-    ERROR << "not implemented";
-    return false;
+    std::string t = html;
+    std::transform( t.begin(), t.end(), t.begin(), ::tolower );
+    osg::Vec4ub c(0,0,0,255);
+    if ( t.length() >= 7 ) {
+        c.r() |= t[1]<='9' ? (t[1]-'0')<<4 : (10+(t[1]-'a'))<<4;
+        c.r() |= t[2]<='9' ? (t[2]-'0')    : (10+(t[2]-'a'));
+        c.g() |= t[3]<='9' ? (t[3]-'0')<<4 : (10+(t[3]-'a'))<<4;
+        c.g() |= t[4]<='9' ? (t[4]-'0')    : (10+(t[4]-'a'));
+        c.b() |= t[5]<='9' ? (t[5]-'0')<<4 : (10+(t[5]-'a'))<<4;
+        c.b() |= t[6]<='9' ? (t[6]-'0')    : (10+(t[6]-'a'));
+        if ( t.length() == 9 ) {
+            c.a() = 0;
+            c.a() |= t[7]<='9' ? (t[7]-'0')<<4 : (10+(t[7]-'a'))<<4;
+            c.a() |= t[8]<='9' ? (t[8]-'0')    : (10+(t[8]-'a'));
+        }
+    }
+    float w = ((float)c.r())/255.0f;
+    float x = ((float)c.g())/255.0f;
+    float y = ((float)c.b())/255.0f;
+    float z = ((float)c.a())/255.0f;
+
+    return osg::Vec4( w, x, y, z );
+}
+
+
+bool Interpreter::setSymbology(const AttributeMap & am)
+{
+    osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
+
+    if ( am.value("id").empty() ) return false;
+
+    if ( ! am.optionalValue("fill_color").empty() ){
+        osg::ref_ptr<osg::Material> material = new osg::Material;
+        material->setDiffuse(osg::Material::FRONT_AND_BACK, htmlColor(am.optionalValue("fill_color")) );
+        stateset->setAttribute(material,osg::StateAttribute::ON);
+        stateset->setMode( GL_LIGHTING, osg::StateAttribute::ON );
+        stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);
+    }
+
+    return _viewer->setStateSet( am.value("id"), stateset.get() );
 }
 
 bool Interpreter::setFullExtent(const AttributeMap & )

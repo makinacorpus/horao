@@ -2,6 +2,7 @@
 #include "Log.h"
 
 #include <osg/CullFace>
+#include <osg/Material>
 #include <osgGA/TrackballManipulator>
 #include <osgGA/TerrainManipulator>
 #include <osgGA/StateSetManipulator>
@@ -50,7 +51,7 @@ ViewerWidget::ViewerWidget():
 
         osg::StateSet* ss = _root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
-        ss->setAttribute( cf, osg::StateAttribute::OVERRIDE );
+        ss->setAttributeAndModes( cf, osg::StateAttribute::ON );
 
         // create sunlight
         setLightingMode( osg::View::SKY_LIGHT );
@@ -88,6 +89,23 @@ void ViewerWidget::setDone( bool flag ) volatile
     that->osgViewer::Viewer::setDone( flag );
 }
 
+
+bool ViewerWidget::setStateSet( const std::string& nodeId, osg::StateSet * stateset) volatile
+{
+
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
+
+    const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
+    if ( found == that->_nodeMap.end() ){
+        ERROR << "cannot find node '" << nodeId << "'";
+        return false;
+    }
+    found->second->setStateSet( stateset );
+    return true;
+}
+
+
 bool ViewerWidget::addNode( const std::string& nodeId, osg::Node * node ) volatile 
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
@@ -97,6 +115,7 @@ bool ViewerWidget::addNode( const std::string& nodeId, osg::Node * node ) volati
         ERROR << "node '" << nodeId << "' already exists";
         return false;
     }
+
     that->_root->addChild( node );
     that->_nodeMap.insert( std::make_pair( nodeId, node ) );
     return true;
