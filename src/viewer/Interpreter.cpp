@@ -23,7 +23,11 @@ Interpreter::Interpreter(volatile ViewerWidget * vw, const std::string & fileNam
 void Interpreter::run()
 {
     std::ifstream ifs( _inputFile.c_str() );
-    _inputFile.empty() || ifs || ERROR << "cannot open '" << _inputFile << "'";
+    if ( !_inputFile.empty() && !ifs ){
+        ERROR << "cannot open '" << _inputFile << "'";
+        std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
+        Log::instance().str("");\
+    }
     std::string line;
     while ( std::getline( ifs, line ) || std::getline( std::cin, line ) ) {
         if ( line.empty() || '#' == line[0] ) continue; // empty line
@@ -40,7 +44,6 @@ void Interpreter::run()
             // remove spaces in key
             key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
             am[ key ] = value;
-            std::cout << "am[\"" << key << "\"]=\"" << value << "\"\n";
         }
 
         if ( "help" == cmd ){
@@ -73,11 +76,13 @@ void Interpreter::run()
 }
 
 inline
-const std::string intToString( int i ){
+const std::string intToString( int i )
+{
     std::stringstream s;
     s << i;
     return s.str();
 }
+
 
 bool Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
@@ -97,9 +102,8 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
            const int idx = lodDistance.size()-2;
            if (idx < 0) continue;
            const std::string lodIdx = intToString( idx );
-           if ( am.value( "feature_id_"+lodIdx ).empty() 
-                   || am.value("geometry_column_"+lodIdx ).empty() 
-                   || am.value("query_"+lodIdx ).empty() ) return false;
+           if ( am.value("query_"+lodIdx ).empty() 
+                   || !isQueryValid( am.value("query_"+lodIdx ) ) ) return false;
         }
         
         float xmin, ymin, xmax, ymax;
@@ -131,22 +135,18 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
         for (size_t ix=0; ix<numTilesX; ix++){
             for (size_t iy=0; iy<numTilesY; iy++){
                 osg::ref_ptr<osg::PagedLOD> pagedLod = new osg::PagedLOD;
-                //pagedLod->setCenterMode(osg::PagedLOD::USE_BOUNDING_SPHERE_CENTER );
                 const float xm = xmin + ix*tileSize;
                 const float ym = ymin + iy*tileSize;
                 for (size_t ilod = 0; ilod < lodDistance.size()-1; ilod++){
                     const std::string lodIdx = intToString( ilod );
                     const std::string query = tileQuery( am.value("query_"+lodIdx ), xm, ym, xm+tileSize, ym+tileSize );
                     if (query.empty()) return false;
-                    const std::string pseudoFile = "conn_info=\""       + am.value("conn_info")       + "\" "
-                                                 + "center=\""          + am.value("center")          + "\" "
-                                                 + "feature_id=\""      + am.value("feature_id_"+lodIdx)      + "\" "
-                                                 + "geometry_column=\"" + am.value("geometry_column_"+lodIdx) + "\" "
-                                                 + "query=\""           + query + "\".postgisd";
+                    const std::string pseudoFile = "conn_info=\"" + am.value("conn_info")       + "\" "
+                                                 + "center=\""    + am.value("center")          + "\" "
+                                                 + "query=\""     + query + "\".postgisd";
 
                     pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
                     pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
-                    std:: cout << "range " << ilod << "/" << lodIdx << ": " <<lodDistance[ilod] << "-" << lodDistance[ilod+1]<< " :" << pseudoFile << "\n";
                 }
                 pagedLod->setCenter( osg::Vec3( xm+.5*tileSize, ym+.5*tileSize ,0) - center );
                 pagedLod->setRadius( .5*tileSize*std::sqrt(2.0) );
@@ -172,17 +172,14 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
             stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);
             _viewer->addNode( "floor", basicShapesGeode );
             once = true;
+        }
             
     }
     // without LOD
     else{
-      if ( am.value("feature_id").empty() 
-        || am.value("geometry_column").empty() 
-        || am.value("query").empty() ) return false;
+      if ( am.value("query").empty() || !isQueryValid( am.value("query") ) ) return false;
         const std::string pseudoFile = "conn_info=\""       + am.value("conn_info")       + "\" "
                                      + "center=\""          + am.value("center")          + "\" "
-                                     + "feature_id=\""      + am.value("feature_id")      + "\" "
-                                     + "geometry_column=\"" + am.value("geometry_column") + "\" "
                                      + "query=\""           + am.value("query")           + "\".postgisd";
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
@@ -190,9 +187,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
             return false;
         }
         if (!_viewer->addNode( am.value("id"), node.get() )) return false;
-        }
     }
-
 
     return true;
 }

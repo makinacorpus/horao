@@ -57,15 +57,24 @@ private:
 
 };
 
-osg::Geometry * createGeometry( const LWGEOM * lwgeom, const osg::Matrixd & layerToWord );
-
-osg::PrimitiveSet * offsetIndices( osg::PrimitiveSet * primitiveSet, size_t offset);
-
 inline
 std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
 {
     o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
     return o;
+}
+
+inline
+bool isQueryValid( const std::string & query )
+{
+    // query must define either a geometry column named "geom"
+    // or the triplet "pos" "height" "width" to create bar diagrams
+    if ( query.find("geom") != std::string::npos ) return true;
+    else if (  query.find("pos") != std::string::npos
+            && query.find("height") != std::string::npos
+            && query.find("width") != std::string::npos ) return true;
+    ERROR << "invalid query\n";
+    return false;
 }
 
 inline
@@ -107,6 +116,8 @@ struct TriangleMesh
     void push_back( const LWTRIANGLE * );
     void push_back( const LWPOLY * );
     void push_back( const LWGEOM * );
+
+    void addBar( const osg::Vec3 & center, float width, float depth, float height );
     
     osg::Geometry * createGeometry() const;
 

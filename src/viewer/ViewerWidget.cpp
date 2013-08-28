@@ -53,6 +53,8 @@ ViewerWidget::ViewerWidget():
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
         ss->setAttributeAndModes( cf, osg::StateAttribute::ON );
 
+        ss->setMode(GL_BLEND, osg::StateAttribute::ON);
+
         // create sunlight
         setLightingMode( osg::View::SKY_LIGHT );
         getLight()->setPosition(osg::Vec4(1000,0,1000,0));
@@ -78,12 +80,10 @@ void ViewerWidget::frame()
 {
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( _mutex );
     osgViewer::Viewer::frame();
-    if (done()) DEBUG_TRACE;
 }
 
 void ViewerWidget::setDone( bool flag ) volatile
 {
-    DEBUG_TRACE
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     that->osgViewer::Viewer::setDone( flag );

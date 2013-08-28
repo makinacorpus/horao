@@ -79,7 +79,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         if ( !acceptsExtension(osgDB::getLowerCaseFileExtension( file_name )))
             return ReadResult::FILE_NOT_HANDLED;
 
-        std::cout << "loaded plugin postgis for [" << file_name << "]\n";
+        DEBUG_OUT << "loaded plugin postgis for [" << file_name << "]\n";
 
         osg::Timer timer;
 
@@ -116,20 +116,6 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
-        const int featureIdIdx = PQfnumber(res.get(), am["feature_id"].c_str() );
-        if ( featureIdIdx < 0 )
-        {
-            std::cerr << "failed to obtain feature_id=\""<< am["feature_id"] <<"\"\n";
-            return ReadResult::ERROR_IN_READING_FILE;
-        }
-
-        const int geomIdx = PQfnumber(res.get(),  am["geometry_column"].c_str() );
-        if ( geomIdx < 0 )
-        {
-            std::cerr << "failed to obtain geometry_column=\""<< am["geometry_column"] <<"\"\n";
-            return ReadResult::ERROR_IN_READING_FILE;
-        }
-
         const int numFeatures = PQntuples( res.get() );
         DEBUG_OUT << "got " << numFeatures << " features in " << timer.time_s() << "sec\n";
 
@@ -149,16 +135,48 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
         osg::ref_ptr<osg::Geode> group = new osg::Geode();
 
+        const int geomIdx   = PQfnumber(res.get(),  "geom" );
+
+        const int posIdx    = PQfnumber(res.get(),  "pos" );
+        const int heightIdx = PQfnumber(res.get(),  "height" );
+        const int widthIdx  = PQfnumber(res.get(),  "width");
+
         Stack3d::Viewer::TriangleMesh mesh( layerToWord );
 
-        for( int i=0; i<numFeatures; i++ )
-        {
-            const char * wkb = PQgetvalue( res.get(), i, geomIdx );
-            Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
-            assert( lwgeom.get() );
-            mesh.push_back( lwgeom.get() );
+        if (geomIdx >= 0){ // we have a geom column, we create the model from it 
+            for( int i=0; i<numFeatures; i++ ) {
+                const char * wkb = PQgetvalue( res.get(), i, geomIdx );
+                Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
+                assert( lwgeom.get() );
+                mesh.push_back( lwgeom.get() );
+            }
         }
-        group->addDrawable( mesh.createGeometry() );
+        else if ( posIdx >= 0 && heightIdx >= 0 && widthIdx >=0 ){ // we draw bars instead of geom
+            for( int i=0; i<numFeatures; i++ ) {
+                const char * wkb = PQgetvalue( res.get(), i, posIdx );
+                Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
+                assert( lwgeom.get() );
+                LWPOINT * lwpoint = lwgeom_as_lwpoint( lwgeom.get() );
+                if( !lwpoint ){
+                    std::cerr << "failed to get points from column 'pos'\n";
+                    return ReadResult::ERROR_IN_READING_FILE;
+                }
+
+                const POINT3DZ p = getPoint3dz( lwpoint->point, 0 );
+                const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
+                const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
+
+                mesh.addBar( osg::Vec3(p.x, p.y, p.z + h/2), w, w, h);
+            }
+
+        } 
+        else {
+            std::cerr << "cannot find either 'geom' column or 'height','width' columns\n"; 
+            return ReadResult::ERROR_IN_READING_FILE;
+        }
+
+        group->addDrawable(mesh.createGeometry());
+
 
         DEBUG_OUT << "converted " << numFeatures << " features in " << timer.time_s() << "sec\n";
 
