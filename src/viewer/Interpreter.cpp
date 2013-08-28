@@ -261,7 +261,9 @@ bool Interpreter::setSymbology(const AttributeMap & am)
 
     if ( ! am.optionalValue("fill_color").empty() ){
         osg::ref_ptr<osg::Material> material = new osg::Material;
-        material->setDiffuse(osg::Material::FRONT_AND_BACK, htmlColor(am.optionalValue("fill_color")) );
+        const osg::Vec4 c = htmlColor(am.optionalValue("fill_color"));
+        material->setDiffuse(osg::Material::FRONT_AND_BACK, c );
+        material->setAmbient(osg::Material::FRONT_AND_BACK, c );
         stateset->setAttribute(material,osg::StateAttribute::ON);
         stateset->setMode( GL_LIGHTING, osg::StateAttribute::ON );
         stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);

@@ -1,0 +1,8 @@
+#loadVectorPostgis id="l1" conn_info="dbname='paris'" feature_id="gid" geometry_column="geom" center="593093 123976" query="SELECT gid,geom FROM bati_extru /**WHERE TILE && geom*/ "
+
+loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="2000" center="593093 123976" lod="10 2000 30000" feature_id_0="gid" geometry_column_0="geom" query_0="SELECT gid,geom FROM bati_extru /**WHERE TILE && geom*/ " feature_id_1="gid" geometry_column_1="geom" query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
+
+#loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="5000" center="593093 123976" lod="10 100000"  feature_id_0="gid" geometry_column_0="geom" query_0="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
+
+
+setSymbology id="l1" fill_color="#999999ff"
