@@ -24,7 +24,7 @@ private:
     osg::ref_ptr<osg::Group> _root;
     typedef std::map< std::string, osg::ref_ptr<osg::Node> > NodeMap;
     NodeMap _nodeMap;
-    void frame();
+    void frame(double time);
 };
 
 }

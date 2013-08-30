@@ -70,13 +70,18 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         supportsExtension( "postgisd", "PostGIS feature driver for osgEarth" );
     }
 
-    virtual const char* className()
+    const char* className() const
     {
-        return "PostGIS Feature Reader";
+        return "ReaderWriterPOSTGIS";
+    }
+
+    ReadResult readNode(std::istream&, const Options*) const
+    {
+        return ReadResult::NOT_IMPLEMENTED;
     }
 
     // note: stupid key="value" parser, value must not contain '"'  
-    virtual ReadResult readNode(const std::string& file_name, const Options* ) const
+    ReadResult readNode(const std::string& file_name, const Options* ) const
     {
         if ( !acceptsExtension(osgDB::getLowerCaseFileExtension( file_name )))
             return ReadResult::FILE_NOT_HANDLED;
