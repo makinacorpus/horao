@@ -65,6 +65,7 @@ void Interpreter::run()
         COMMAND(hideLayer)
         COMMAND(setSymbology)
         COMMAND(setFullExtent)
+        COMMAND(addPlane)
         else{
             ERROR << "unknown command '" << cmd << "'.";
             std::cout << "<error msg=\"" << Log::instance().str() << "\"/>\n";
@@ -83,6 +84,26 @@ const std::string intToString( int i )
     return s.str();
 }
 
+bool Interpreter::addPlane( const AttributeMap & am )
+{
+    if ( am.value("id").empty() || am.value("extend").empty() ) return false;
+
+    float xmin, ymin, xmax, ymax;
+    std::stringstream ext( am.value("extend") );
+    std::string l;
+    if ( !(ext >> xmin >> ymin)
+        || !std::getline(ext, l, ',')
+        || !(ext >> xmax >> ymax) ) {
+        ERROR << "cannot parse extend";
+        return false;
+    }
+
+    osg::Box* unitCube = new osg::Box( osg::Vec3(xmax-xmin, ymax-ymin,-2)/2, xmax-xmin, ymax-ymin, 0);
+    osg::ShapeDrawable* plane = new osg::ShapeDrawable(unitCube);
+    osg::Geode* geode = new osg::Geode();
+    geode->addDrawable( plane );
+    return _viewer->addNode( am.value("id"), geode );
+}
 
 bool Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
@@ -143,7 +164,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     if (query.empty()) return false;
                     const std::string pseudoFile = "conn_info=\"" + am.value("conn_info")       + "\" "
                                                  + "center=\""    + am.value("center")          + "\" "
-                                                 + "query=\""     + query + "\".postgisd";
+                                                 + "query=\""     + query + "\".postgis";
 
                     pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
                     pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
@@ -155,24 +176,6 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
         }
         if (!_viewer->addNode( am.value("id"), group.get() )) return false;
 
-        static bool once = false;
-        if (!once){
-            osg::Box* unitCube = new osg::Box( osg::Vec3(xmax-xmin, ymax-ymin,-2)/2, xmax-xmin, ymax-ymin, 0);
-            osg::ShapeDrawable* unitCubeDrawable = new osg::ShapeDrawable(unitCube);
-            osg::Geode* basicShapesGeode = new osg::Geode();
-            basicShapesGeode->addDrawable(unitCubeDrawable);
-
-            osg::StateSet* stateset = new osg::StateSet;
-            basicShapesGeode->setStateSet( stateset );
-            osg::Material* material = new osg::Material;
-            material->setAmbient(osg::Material::FRONT_AND_BACK,osg::Vec4(.2f,.2f,.2f,1.0f));
-            material->setDiffuse(osg::Material::FRONT_AND_BACK,osg::Vec4(.2f,.2f,.2f,1.0f));
-            stateset->setAttribute(material,osg::StateAttribute::ON);
-            stateset->setMode( GL_LIGHTING, osg::StateAttribute::ON );
-            stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);
-            _viewer->addNode( "floor", basicShapesGeode );
-            once = true;
-        }
             
     }
     // without LOD

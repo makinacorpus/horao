@@ -2,9 +2,15 @@
 
 #loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" lod="10 100000"  feature_id_0="gid" geometry_column_0="geom" query_0="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
 
+addPlane id="p0" extend="593093 123976,605824 133525"
+setSymbology id="p0" fill_color="#999999ff"
+
 loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" lod="10 2000 30000" query_0="SELECT geom FROM bati_extru /**WHERE TILE && geom*/ " query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
 
 loadVectorPostgis id="b1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="200" center="593093 123976" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 5 AS width FROM bati /**WHERE TILE && geom*/ "
 
-setSymbology id="l1" fill_color="#999999ff"
+setSymbology id="l1" fill_color="#c9c9c9ff"
 setSymbology id="b1" fill_color="#0000fc99"
+
+
+#"conn_info=\"dbname='paris'\" center=\"593093 123976\" query=\"SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 5 AS width FROM bati\"".postgisd

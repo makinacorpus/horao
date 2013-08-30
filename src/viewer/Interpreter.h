@@ -65,6 +65,7 @@ struct Interpreter: public OpenThreads::Thread
     bool hideLayer(const AttributeMap & am);
     bool setSymbology( const AttributeMap & );
     bool setFullExtent( const AttributeMap & );
+    bool addPlane( const AttributeMap & );
 
 private:
 
