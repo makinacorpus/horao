@@ -28,6 +28,7 @@ namespace Viewer {
 // we do that orselves since an osg::Box for each feature is really slow
 void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, float height )
 {
+    /*
     const osg::Vec3 c = center*_layerToWord;
     const osg::Vec3 v[8] = 
     { 
@@ -87,8 +88,106 @@ void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, f
     const int numTriPerFace = 2;
     const int numVtxPerTri = 3;
     for (int i=0; i<numFaces*numTriPerFace*numVtxPerTri; i++) _tri.push_back( i + offset );
+    */
+
+    // we build a bevelled box, without a bottom
+    // it's base is centerd on origin
+
+    const float x = .5f*width;
+    const float y = .5f*depth;
+    const float e = width/30;
+
+    const unsigned o = unsigned(_vtx.size());
+    // vertex indices for base, top of the side faces and cap
+    const unsigned b[8] = { o, o+1, o+2, o+3, o+4, o+5, o+6, o+7 }; 
+    const unsigned t[8] = { o+8, o+9, o+10, o+11, o+12, o+13, o+14, o+15 };
+    const unsigned c[4] = { o+16, o+17, o+18, o+19 };
+
+    const osg::Vec3 vb[8] = {
+        osg::Vec3(-x+e, -y  , 0),
+        osg::Vec3( x-e, -y  , 0),
+        osg::Vec3( x  , -y+e, 0),
+        osg::Vec3( x  ,  y-e, 0),
+        osg::Vec3( x-e,  y  , 0),
+        osg::Vec3(-x+e,  y  , 0),
+        osg::Vec3(-x  ,  y-e, 0),
+        osg::Vec3(-x  , -y+e, 0)};
+
+    const osg::Vec3 nb[8] = { 
+        osg::Vec3( 0, -1, 0 ),
+        osg::Vec3( 0, -1, 0 ),
+        osg::Vec3( 1,  0, 0 ),
+        osg::Vec3( 1,  0, 0 ),
+        osg::Vec3( 0,  1, 0 ),
+        osg::Vec3( 0,  1, 0 ),
+        osg::Vec3(-1,  0, 0 ),
+        osg::Vec3(-1,  0, 0 )};
+
+    osg::Vec3 vt[8];
+    for (size_t i=0; i<8; i++) vt[i] = vb[i] + osg::Vec3(0,0,height);
 
 
+    const osg::Vec3 vc[4] = {
+        osg::Vec3(-x+e, -y+e, height),
+        osg::Vec3( x-e, -y+e, height),
+        osg::Vec3( x-e,  y-e, height),
+        osg::Vec3(-x+e,  y-e, height)};
+
+    const osg::Vec3 nc[4] = {
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1)};
+
+    _vtx.insert(_vtx.end(), vb, vb+8);
+    _nrml.insert(_nrml.end(), nb, nb+8);
+
+    _vtx.insert(_vtx.end(), vt, vt+8);
+    _nrml.insert(_nrml.end(), nb, nb+8); // same nrml as bottom
+
+    _vtx.insert(_vtx.end(), vc, vc+4);
+    _nrml.insert(_nrml.end(), nc, nc+4);
+
+    // sides, loop / indices
+    for (size_t i=0; i<8; i++){
+       _tri.push_back(b[i]);
+       _tri.push_back(b[(i+1)%8]);
+       _tri.push_back(t[i]);
+       _tri.push_back(t[i]);
+       _tri.push_back(b[(i+1)%8]);
+       _tri.push_back(t[(i+1)%8]);
+    }
+    
+    // top
+    _tri.push_back(c[0]);
+    _tri.push_back(c[1]);
+    _tri.push_back(c[2]);
+    _tri.push_back(c[0]);
+    _tri.push_back(c[2]);
+    _tri.push_back(c[3]);
+
+    // top bevel
+    for (size_t i=0; i<4; i++){
+        _tri.push_back(t[(i*2)%8]); 
+        _tri.push_back(t[(i*2+1)%8]); 
+        _tri.push_back(c[i]); 
+        _tri.push_back(c[i]); 
+        _tri.push_back(t[(i*2+1)%8]);
+        _tri.push_back(c[(i+1)%4]); 
+    }
+
+    // top corners
+    for (size_t i=0; i<4; i++){
+        _tri.push_back(t[(i*2+1)%8]); 
+        _tri.push_back(t[(i*2+2)%8]); 
+        _tri.push_back(c[(i+1)%4]);
+    }
+    
+    // translate all vtx by base center
+    const osg::Vec3 bc = center*_layerToWord - osg::Vec3(0,0,.5f*height); // center of the base
+    const size_t sz = _vtx.size();
+    assert( _vtx.size() - o == 20 );
+    for ( size_t i=o; i<sz; i++ ) _vtx[i] += bc;
 }
 
 void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )

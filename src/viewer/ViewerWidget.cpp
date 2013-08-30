@@ -182,7 +182,7 @@ osg::Camera* createRenderTargetCamera(osg::Texture2D* rttDepthTexture,
     camera->setViewMatrixAsLookAt(osg::Vec3(0.0f,-30.0f,0.0f),osg::Vec3(0,0,0),osg::Vec3(0.0f,0.0f,1.0f));
     
     //    Camera hints
-    camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+    //camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
 
     return camera;
 }
@@ -194,7 +194,7 @@ osg::Camera* createNormalCamera(void)
     camera->setClearColor(osg::Vec4( 204.0/255, 204.0/255, 204.0/255, 1 ));
     camera->setClearMask(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
     //    Set viewport
-    camera->setViewport(0,0,WINDOW_WIDTH/2,WINDOW_HEIGHT/2);
+    camera->setViewport(0,0,WINDOW_WIDTH/3,WINDOW_HEIGHT/3);
     //    Set projection
     camera->setProjectionMatrixAsOrtho2D(0,1024,0,1024);
     //    Set view
@@ -268,7 +268,7 @@ ViewerWidget::ViewerWidget():
     }
 
     // back alpha blending for "transparency"
-    if(0)
+    if(1)
     {
         osg::StateSet* ss = _root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
@@ -468,7 +468,7 @@ ViewerWidget::ViewerWidget():
         ss->setAttributeAndModes(program, osg::StateAttribute::ON);
     }
 
-    if (0)
+    if (1)
     {
         //    Create RT textures
         osg::Texture2D* rttDepthTexture   = createDepthTexture (512,512);
@@ -485,10 +485,10 @@ ViewerWidget::ViewerWidget():
         //    Add 4 x ortho quads to the screen/scene
 
         //    Create 4 quads each one is a quarter of the screen.
-        osg::Geode* fullScreenQuadGeode01 = createPlaneGeode( 0,    256, 256, 256);
-        osg::Geode* fullScreenQuadGeode02 = createPlaneGeode( 256,    256, 256, 256);
-        osg::Geode* fullScreenQuadGeode03 = createPlaneGeode( 0,    0,   256, 256);
-        osg::Geode* fullScreenQuadGeode04 = createPlaneGeode( 256,    0,   256, 256);
+        osg::Geode* fullScreenQuadGeode01 = createPlaneGeode( 0,    512, 512, 512);
+        osg::Geode* fullScreenQuadGeode02 = createPlaneGeode( 512,    512, 512, 512);
+        osg::Geode* fullScreenQuadGeode03 = createPlaneGeode( 0,    0,   512, 512);
+        osg::Geode* fullScreenQuadGeode04 = createPlaneGeode( 512,    0,   512, 512);
 
         //    Create an orthographic camera and attach the 4 quads to it.
         osg::Camera* normalCamera = createNormalCamera();
