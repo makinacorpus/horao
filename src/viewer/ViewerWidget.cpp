@@ -249,11 +249,12 @@ ViewerWidget::ViewerWidget():
 
 
         // create sunlight
-        setLightingMode( osg::View::SKY_LIGHT );
-        getLight()->setPosition(osg::Vec4(1000,0,1000,0));
-        //getLight()->setDirection(osg::Vec3(-1,0,-1));
+        //setLightingMode( osg::View::SKY_LIGHT );
+        //getLight()->setPosition(osg::Vec4(1000,2000,3000,0));
+        //getLight()->setDirection(osg::Vec3(-1,-2,-3));
         getLight()->setAmbient(osg::Vec4( 0.6,0.6,0.6,1 ));
         getLight()->setDiffuse(osg::Vec4( 0.6,0.6,0.6,1 ));
+        getLight()->setSpecular(osg::Vec4( 0.9,0.9,0.9,1 ));
 
         addEventHandler( new osgViewer::StatsHandler );
         setCameraManipulator( new osgGA::TerrainManipulator );
@@ -273,7 +274,7 @@ ViewerWidget::ViewerWidget():
         osg::StateSet* ss = _root->getOrCreateStateSet();
         osg::CullFace* cf = new osg::CullFace( osg::CullFace::BACK );
         ss->setAttributeAndModes( cf, osg::StateAttribute::ON );
-        ss->setMode(GL_BLEND, osg::StateAttribute::ON);
+        //ss->setMode(GL_BLEND, osg::StateAttribute::ON);
     }
 
     //ssao
@@ -468,7 +469,7 @@ ViewerWidget::ViewerWidget():
         ss->setAttributeAndModes(program, osg::StateAttribute::ON);
     }
 
-    if (1)
+    if (0)
     {
         //    Create RT textures
         osg::Texture2D* rttDepthTexture   = createDepthTexture (512,512);

@@ -7,10 +7,14 @@ setSymbology id="p0" fill_color="#999999ff"
 
 loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" lod="10 2000 30000" query_0="SELECT geom FROM bati_extru /**WHERE TILE && geom*/ " query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
 
-loadVectorPostgis id="b1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="200" center="593093 123976" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 5 AS width FROM bati /**WHERE TILE && geom*/ "
+loadVectorPostgis id="b1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="200" center="593093 123976" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 10 AS width FROM bati /**WHERE TILE && geom*/ "
 
-setSymbology id="l1" fill_color="#c9c9c9ff"
-setSymbology id="b1" fill_color="#0000fc99"
+setSymbology id="l1" fill_color_diffuse="#c0c0c0ff" fill_color_ambient="#c0c0c0ff"
+
+setSymbology id="b1" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000ff" fill_color_specular="#ffffffff" fill_color_shininess="64."
 
 
-#"conn_info=\"dbname='paris'\" center=\"593093 123976\" query=\"SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 5 AS width FROM bati\"".postgisd
+#loadVectorPostgis id="l2" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" query="SELECT ST_REVERSE(geom) AS geom FROM srtm_paris_rid_seq /**WHERE TILE && geom*/ "
+
+#setSymbology id="l2" fill_color_diffuse="#800000ff" fill_color_ambient="#800000ff"
+

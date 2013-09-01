@@ -95,7 +95,7 @@ void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, f
 
     const float x = .5f*width;
     const float y = .5f*depth;
-    const float e = width/30;
+    const float e = width/20;
 
     const unsigned o = unsigned(_vtx.size());
     // vertex indices for base, top of the side faces and cap
@@ -124,7 +124,7 @@ void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, f
         osg::Vec3(-1,  0, 0 )};
 
     osg::Vec3 vt[8];
-    for (size_t i=0; i<8; i++) vt[i] = vb[i] + osg::Vec3(0,0,height);
+    for (size_t i=0; i<8; i++) vt[i] = vb[i] + osg::Vec3(0,0,height-e);
 
 
     const osg::Vec3 vc[4] = {

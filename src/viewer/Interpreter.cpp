@@ -253,19 +253,22 @@ const osg::Vec4 htmlColor( const std::string & html )
 
 bool Interpreter::setSymbology(const AttributeMap & am)
 {
+    if ( am.value("id").empty() ) return false;
     osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
 
-    if ( am.value("id").empty() ) return false;
+    osg::ref_ptr<osg::Material> material = new osg::Material;
+    if ( ! am.optionalValue("fill_color_ambient").empty() )
+        material->setAmbient(osg::Material::FRONT, htmlColor(am.optionalValue("fill_color_ambient")) );
+    if ( ! am.optionalValue("fill_color_diffuse").empty() )
+        material->setDiffuse(osg::Material::FRONT, htmlColor(am.optionalValue("fill_color_diffuse")) );
+    if ( ! am.optionalValue("fill_color_specular").empty() )
+        material->setSpecular(osg::Material::FRONT, htmlColor(am.optionalValue("fill_color_specular")) );
+    if ( ! am.optionalValue("fill_color_shininess").empty() )
+        material->setShininess(osg::Material::FRONT, atof(am.optionalValue("fill_color_shininess").c_str()) );
 
-    if ( ! am.optionalValue("fill_color").empty() ){
-        osg::ref_ptr<osg::Material> material = new osg::Material;
-        const osg::Vec4 c = htmlColor(am.optionalValue("fill_color"));
-        material->setDiffuse(osg::Material::FRONT_AND_BACK, c );
-        material->setAmbient(osg::Material::FRONT_AND_BACK, c );
-        stateset->setAttribute(material,osg::StateAttribute::ON);
-        stateset->setMode( GL_LIGHTING, osg::StateAttribute::ON );
-        stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);
-    }
+    stateset->setAttribute(material,osg::StateAttribute::ON);
+    //stateset->setMode( GL_LIGHTING, osg::StateAttribute::ON );
+    stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);
 
     return _viewer->setStateSet( am.value("id"), stateset.get() );
 }
