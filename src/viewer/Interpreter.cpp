@@ -10,11 +10,9 @@
 
 #include <libxml/parser.h>
 
-
-
 namespace Stack3d {
 namespace Viewer {
-
+    
 Interpreter::Interpreter(volatile ViewerWidget * vw, const std::string & fileName )
     : _viewer( vw )
     , _inputFile( fileName )
@@ -49,13 +47,16 @@ void Interpreter::run()
         if ( "help" == cmd ){
             help();
         }
-#define COMMAND( CMD ) \
-        else if ( #CMD == cmd  ){\
-            if ( !CMD( am ) ){\
-               ERROR << "cannot " << #CMD;\
-               std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
-               Log::instance().str("");\
-            }\
+#define COMMAND( CMD )                                                  \
+        else if ( #CMD == cmd  ){                                       \
+            if ( !CMD( am ) ){                                          \
+                ERROR << "cannot " << #CMD;                             \
+                std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n"; \
+            }                                                           \
+            else {                                                      \
+                std::cout << "<ok/>\n";                                 \
+            }                                                           \
+            Log::instance().str("");                                    \
         }
         COMMAND(loadVectorPostgis)
         COMMAND(loadRasterGDAL)
@@ -163,8 +164,8 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     const std::string query = tileQuery( am.value("query_"+lodIdx ), xm, ym, xm+tileSize, ym+tileSize );
                     if (query.empty()) return false;
                     const std::string pseudoFile = "conn_info=\"" + am.value("conn_info")       + "\" "
-                                                 + "center=\""    + am.value("center")          + "\" "
-                                                 + "query=\""     + query + "\".postgis";
+                        + "center=\""    + am.value("center")          + "\" "
+                        + "query=\""     + query + "\".postgis";
 
                     pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
                     pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );

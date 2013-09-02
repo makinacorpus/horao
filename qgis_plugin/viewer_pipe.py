@@ -25,6 +25,7 @@ import xml.etree.ElementTree as ET
 
 import subprocess
 import os
+import sys
 
 class ViewerPipe:
     """Communication pipe with the viewer"""
@@ -50,10 +51,13 @@ class ViewerPipe:
     # args: dict of arguments
     # return value: [ status, dict ]
     def evaluate( self, cmd, args ):
-        toSend = "<" + cmd + ' ' + ' '.join(["%s=%s" % (k, quoteattr(str(v))) for k,v in args.iteritems()]) + "/>"
+        #toSend = "<" + cmd + ' ' + ' '.join(["%s=%s" % (k, quoteattr(str(v))) for k,v in args.iteritems()]) + "/>"
+        toSend = cmd + ' ' + ' '.join(["%s=%s" % (k, quoteattr(str(v), {'"' : "&quot;"} )) for k,v in args.iteritems()])
+        sys.stderr.write( toSend + "\n" )
         if not self.process.stdin.closed:
             self.process.stdin.write( toSend + "\n" )
             ret = self.process.stdout.readline()
+            sys.stderr.write( "ret: " + ret + "\n" )
             try:
                 root = ET.fromstring( ret )
                 ret = [ root.tag, root.attrib ]

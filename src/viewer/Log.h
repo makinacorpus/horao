@@ -4,6 +4,8 @@
 #include <iostream>
 #include <sstream>
 
+#include <boost/algorithm/string/replace.hpp>
+
 #define DEBUG_TRACE std::cerr << __PRETTY_FUNCTION__ << "\n";
 #define ERROR  (Stack3d::Viewer::Log::instance() << __FILE__ << ":" << __LINE__ << ": " )
 #define WARNING (std::cerr << "warning: " << __FILE__ << ":" << __LINE__  << ": " )

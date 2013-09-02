@@ -29,6 +29,7 @@ from viewer_pipe import ViewerPipe
 # Initialize Qt resources from file resources.py
 import resources_rc
 import os.path
+import sys
 
 SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
 #SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/qgis_plugin/fake_viewer.py"
@@ -107,24 +108,57 @@ class Canvas3D:
 
             if providerName == 'postgres':
                 # parse connection string
-                s = layer.source().split(' ')
+#                sys.stderr.write(layer.source())
                 connection = {}
+                geocolumn = 'geom'
+                args = {}
+                query = ''
+                table = ''
+
+                # connection info followed by table and queries
+                # connection info : k='v' (optional ' for integers)
+                # queries : table="...." (geocolumn_name) sql=... until end of line
+                (connection_str, queries_str) = layer.source().split("table=")
+
+                s = connection_str.split(' ')
                 for si in s:
                     ss = si.split('=')
                     if len(ss) > 1:
-                        if ss[0] == 'table':
-                            ss[1] = ss[1].split('.')[1]
                         connection[ ss[0] ] = ss[1].strip("'\"")
 
-                connection['id'] = layer.id()
+                (table, q) = queries_str.split('" ')
+                table=table+'"'
+                # if the table is a query (from DB manager):
+                if table[0:2] == '"(':
+                    table.strip('"')
+                (geocolumn,query) = q.split('sql=')
+                geocolumn=geocolumn.strip('() ')
 
-                self.sendToViewer( 'loadVectorPostgis', connection )
-                self.layers[ layer ] = LayerInfo( layer.id(), False )
+                sys.stderr.write( "table:%s\ngeocolumn:%s\nquery:%s\n" % (table, geocolumn, query) )
 
+                if True:
+                    args['id'] = layer.id()
+                    args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
+                    renderer = self.iface.mapCanvas().mapRenderer()
+                    extent = renderer.fullExtent()
+                    center = extent.center()
+                    args['center'] = "%f %f" % (center.x(), center.y())
+                    
+                    if query == '':
+                        sys.stderr.write( ' '.join(["%s=%s" % (k,v) for (k,v) in connection.iteritems()] ) )
+
+                    args['query_0'] = "SELECT gid, geom FROM bati_extru_subset_mp /**WHERE TILE && geom*/"
+                    args['lod']="0 10000"
+                    args['extend'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
+                    args['tile_size'] = 200
+                    
+                    self.sendToViewer( 'loadVectorPostgis', args )
+                    self.layers[ layer ] = LayerInfo( layer.id(), False )
+                    
                 # send symbology
-
-                style['id'] = layer.id()
-                self.sendToViewer( 'setSymbology', style )
+                    
+                    style['id'] = layer.id()
+                #self.sendToViewer( 'setSymbology', style )
 
         #
         # raster layers
@@ -208,7 +242,7 @@ class Canvas3D:
 
         self.vpipe.start( SIMPLEVIEWER_BIN )
 
-        self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
+#        self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
 
         # load every visible layer
         layers = registry.mapLayers()

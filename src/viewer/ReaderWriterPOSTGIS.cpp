@@ -14,7 +14,7 @@
 #include <map>
 
 
-#define DEBUG_OUT if (0) std::cout
+#define DEBUG_OUT if (1) std::cerr
 
 // for RAII of connection
 struct PostgisConnection
