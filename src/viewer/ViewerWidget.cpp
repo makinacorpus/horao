@@ -462,9 +462,10 @@ ViewerWidget::ViewerWidget():
 
         if (!fShader || !vShader){
             std::cerr << "error: cannot read shader\n";
+            return;
         }
         program->addShader( vShader );
-        program->addShader( fShader );
+        //program->addShader( fShader );
         osg::StateSet* ss = _root->getOrCreateStateSet();
         ss->setAttributeAndModes(program, osg::StateAttribute::ON);
     }

@@ -6,6 +6,7 @@
 #include <osg/ShapeDrawable>
 #include <osg/MatrixTransform>
 #include <osgUtil/Optimizer>
+#include <osgTerrain/Terrain>
 
 #include <iostream>
 #include <sstream>
@@ -61,8 +62,6 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             am.insert( std::make_pair( key, value ) );
         }
 
-
-
         // define transfo  layerToWord
         osg::Matrixd layerToWord;
         {
@@ -85,20 +84,23 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
-        int pixelWidth = raster->GetRasterXSize();
-        int pixelHeight = raster->GetRasterYSize();
+        //int pixelWidth = raster->GetRasterXSize();
+        //int pixelHeight = raster->GetRasterYSize();
 
         double transform[6];
         raster->GetGeoTransform( transform );
 
         GDALRasterBand * band = raster->GetRasterBand( 1 );
-        (void)band;(void)pixelHeight;(void)pixelWidth;
         
-        double dataScale;
+        int x=0;
+        int y=0;
+        int w=100;
+        int h=100;
+
 
         osg::ref_ptr<osg::HeightField> hf( new osg::HeightField() );
 
-        int L = 1 << atoi(am["level"]);
+        int L = 1 << atoi(am["level"].c_str());
         w = w / L;
         h = h / L;
         hf->allocate( w, h );
@@ -132,10 +134,13 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         //raster->GetGeoTransform( _transform );
 
 
+        hf->setSkirtHeight(10);
 
         DEBUG_OUT << "loaded in " << timer.time_s() << "sec\n";
 
-        return hf.release();
+        osg::Geode * geode = new osg::Geode;
+        geode->addDrawable( new osg::ShapeDrawable(hf.get()) );
+        return geode;
     }
 };
 
