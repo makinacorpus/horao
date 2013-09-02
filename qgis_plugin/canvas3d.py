@@ -127,37 +127,40 @@ class Canvas3D:
                         connection[ ss[0] ] = ss[1].strip("'\"")
 
                 (table, q) = queries_str.split('" ')
-                table=table+'"'
                 # if the table is a query (from DB manager):
                 if table[0:2] == '"(':
                     table.strip('"')
+                else:
+                    table=table+'"'
                 (geocolumn,query) = q.split('sql=')
                 geocolumn=geocolumn.strip('() ')
 
                 sys.stderr.write( "table:%s\ngeocolumn:%s\nquery:%s\n" % (table, geocolumn, query) )
 
-                if True:
-                    args['id'] = layer.id()
-                    args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
-                    renderer = self.iface.mapCanvas().mapRenderer()
-                    extent = renderer.fullExtent()
-                    center = extent.center()
-                    args['center'] = "%f %f" % (center.x(), center.y())
+                args['id'] = layer.id()
+                args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
+                renderer = self.iface.mapCanvas().mapRenderer()
+                extent = renderer.fullExtent()
+                center = extent.center()
+                args['extend'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
+                args['center'] = "%f %f" % (center.x(), center.y())
+                
+                # if lod
+                if table[0:2] == '"(':
+                    # table == query (DB manager)
+                    query = table.strip('"()')
+                else:
+                    query = "SELECT * FROM %s /**WHERE TILE && geom*/" % table
+                args['query_0'] = query
+                args['lod']="0 10000"
+                args['tile_size'] = 2000
                     
-                    if query == '':
-                        sys.stderr.write( ' '.join(["%s=%s" % (k,v) for (k,v) in connection.iteritems()] ) )
-
-                    args['query_0'] = "SELECT gid, geom FROM bati_extru_subset_mp /**WHERE TILE && geom*/"
-                    args['lod']="0 10000"
-                    args['extend'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
-                    args['tile_size'] = 200
-                    
-                    self.sendToViewer( 'loadVectorPostgis', args )
-                    self.layers[ layer ] = LayerInfo( layer.id(), False )
+                self.sendToViewer( 'loadVectorPostgis', args )
+                self.layers[ layer ] = LayerInfo( layer.id(), False )
                     
                 # send symbology
                     
-                    style['id'] = layer.id()
+                style['id'] = layer.id()
                 #self.sendToViewer( 'setSymbology', style )
 
         #

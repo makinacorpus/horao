@@ -3,6 +3,7 @@ add_executable( simpleViewer
     ViewerWidget.cpp
     Interpreter.cpp
     PostGisUtils.cpp
+    StringUtils.cpp
 )
 set_target_properties( simpleViewer PROPERTIES DEBUG_POSTFIX "d" )
 target_link_libraries( simpleViewer
