@@ -1,6 +1,7 @@
 #include <stdexcept>
 
 #include <osg/Shape>
+#include <osg/Timer>
 
 #include <osgViewer/Viewer>
 
@@ -278,8 +279,14 @@ int main( int, char *argv[] )
 
     TerrainGDALImporter importer( fileName );
 
+    osg::Timer timer;
+    timer.setStartTick();
+    
     // ask for a quad-tree terrain with LOD0 tile size of 2000x2000
     osg::ref_ptr< osgTerrain::Terrain > terrain( importer.getTerrain( 2000, 2000 ) );
+
+    std::cout << "imported terrain in " <<  timer.time_s() << "sec\n";
+
 
     osgDB::writeNodeFile( *terrain, "terrain.osg" );
 #if 0

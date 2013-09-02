@@ -18,3 +18,5 @@ setSymbology id="b1" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000f
 
 #setSymbology id="l2" fill_color_diffuse="#800000ff" fill_color_ambient="#800000ff"
 
+#"center=\"593093 123976\" file=\"/home/mora/foss4G_2013_demo/MNT2009_Altitude_10m_CC46.tif\"".mntd
+

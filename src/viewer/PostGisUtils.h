@@ -64,46 +64,6 @@ std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
     return o;
 }
 
-inline
-bool isQueryValid( const std::string & query )
-{
-    // query must define either a geometry column named "geom"
-    // or the triplet "pos" "height" "width" to create bar diagrams
-    if ( query.find("geom") != std::string::npos ) return true;
-    else if (  query.find("pos") != std::string::npos
-            && query.find("height") != std::string::npos
-            && query.find("width") != std::string::npos ) return true;
-    ERROR << "invalid query\n";
-    return false;
-}
-
-inline
-const std::string 
-tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
-{ 
-    const char * spacialMetaComments[] = {"/**WHERE TILE &&", "/**AND TILE &&"};
-
-    for ( size_t i = 0; i < sizeof(spacialMetaComments)/sizeof(char *); i++ ){
-        const size_t where = query.find(spacialMetaComments[i]);
-        if ( where != std::string::npos )
-        {
-            query.replace (where, 3, "");
-            const size_t end = query.find("*/", where);
-            if ( end == std::string::npos ){
-                ERROR << "unended comment in query";
-                return "";
-            }
-            query.replace (end, 2, "");
-            
-            std::stringstream bbox;
-            bbox << "ST_MakeEnvelope(" << xmin << "," << ymin << "," << xmax << "," << ymax << ")";
-            const size_t tile = query.find("TILE", where);
-            assert( tile != std::string::npos );
-            query.replace( tile, 4, bbox.str().c_str() ); 
-        }
-    }
-    return query;
-}
 
 
 // temporary structure to avois creation of many mall osg::geometries (slow)

@@ -1,19 +1,15 @@
 #include "Interpreter.h"
-#include "VectorLayerPostgis.h"
-
 #include <osgDB/ReadFile>
 #include <osg/Material>
 #include <osg/Geode>
+#include <osg/ShapeDrawable>
 
 #include <iostream>
 #include <cassert>
 
-#include <libxml/parser.h>
-
-
-
 namespace Stack3d {
 namespace Viewer {
+
 
 Interpreter::Interpreter(volatile ViewerWidget * vw, const std::string & fileName )
     : _viewer( vw )
