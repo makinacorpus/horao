@@ -33,14 +33,16 @@ class ViewerPipe:
     def __init__( self ):
         self.process = None
 
-    def start( self, execName ):
-        if self.process:
-            self.process.terminate()
+    def running( self ):
+        # if poll() returns something, the process has ended
+        return self.process is not None and self.process.poll() is None
 
+    def start( self, execName ):
+        self.stop()
         self.process = subprocess.Popen(execName, shell = True, stdin = subprocess.PIPE, stdout = subprocess.PIPE )
 
     def stop( self ):
-        if self.process:
+        if self.running():
             self.process.terminate()
 
     def __del__( self ):
@@ -51,30 +53,20 @@ class ViewerPipe:
     # args: dict of arguments
     # return value: [ status, dict ]
     def evaluate( self, cmd, args ):
-        #toSend = "<" + cmd + ' ' + ' '.join(["%s=%s" % (k, quoteattr(str(v))) for k,v in args.iteritems()]) + "/>"
+        if not self.running():
+            return [ 'broken_pipe', { 'msg': 'Viewer process has ended'} ]
+        
         toSend = cmd + ' ' + ' '.join(["%s=%s" % (k, quoteattr(str(v), {'"' : "&quot;"} )) for k,v in args.iteritems()])
         sys.stderr.write( toSend + "\n" )
-        if not self.process.stdin.closed:
-            self.process.stdin.write( toSend + "\n" )
-            ret = self.process.stdout.readline()
-            sys.stderr.write( "ret: " + ret + "\n" )
-            try:
-                root = ET.fromstring( ret )
-                ret = [ root.tag, root.attrib ]
-                return ret
-            except ET.ParseError:
-                return [ 'error', {'msg': 'XML Parsing error'} ]
-        else:
-            return [ 'error', {'msg' : 'Broken pipe'} ]
+
+        self.process.stdin.write( toSend + "\n" )
+        ret = self.process.stdout.readline()
+        sys.stderr.write( "ret: " + ret + "\n" )
+        try:
+            root = ET.fromstring( ret )
+            ret = [ root.tag, root.attrib ]
+            return ret
+        except ET.ParseError:
+            return [ 'error', {'msg': 'XML Parsing error'} ]
 
 
-if __name__ == "__main__":
-
-    p = ViewerPipe()
-
-    p.start( "/home/hme/src/3dstack/qgis_plugin/fake_viewer.py" )
-
-    print p.evaluate( 'addLayer', { 'driver':'postgis'} )
-    print p.evaluate( 'addLayer', { 'driver':'toto""'} )
-
-    p.stop()

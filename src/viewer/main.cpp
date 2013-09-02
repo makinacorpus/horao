@@ -10,6 +10,7 @@ int main( int argc, char** argv )
     Interpreter interpreter( viewer.get(), argc >= 2 ? argv[1] : "" );
     interpreter.startThread();
     const int ret = viewer->run();
-    interpreter.join();
+    // force termination of interpreter thread, if still running
+    interpreter.cancel();
     return ret;
 }

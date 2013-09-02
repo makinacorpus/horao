@@ -78,6 +78,9 @@ class Canvas3D:
     def sendToViewer( self, cmd, args ):
         if self.vpipe:
             r = self.vpipe.evaluate( cmd, args )
+            if r[0] == 'broken_pipe':
+                # the viewer is not here anymore, ignoring
+                return
             if r[0] != 'ok':
                 QMessageBox.warning( None, "Communication error", r[1]['msg'] )
 
