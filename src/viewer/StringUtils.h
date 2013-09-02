@@ -4,9 +4,9 @@
 #include <string>
 
 
-std::string unescapeXMLString( const std::string& str );
+const std::string unescapeXMLString( const std::string& str );
 
-std::string escapeXMLString( const std::string& str );
+const std::string escapeXMLString( const std::string& str );
 
 
 #endif

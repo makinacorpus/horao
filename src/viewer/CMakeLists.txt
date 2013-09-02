@@ -11,6 +11,7 @@ target_link_libraries( simpleViewer
     ${LWGEOM_LIBRARY}
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
+    X11
 )
 
 add_library( osgdb_postgis MODULE 
