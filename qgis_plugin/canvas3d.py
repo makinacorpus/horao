@@ -138,7 +138,7 @@ class Canvas3D:
                 (geocolumn,query) = q.split('sql=')
                 geocolumn=geocolumn.strip('() ')
 
-                sys.stderr.write( "table:%s\ngeocolumn:%s\nquery:%s\n" % (table, geocolumn, query) )
+#                sys.stderr.write( "table:%s\ngeocolumn:%s\nquery:%s\n" % (table, geocolumn, query) )
 
                 args['id'] = layer.id()
                 args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
@@ -148,15 +148,20 @@ class Canvas3D:
                 args['extend'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
                 args['center'] = "%f %f" % (center.x(), center.y())
                 
-                # if lod
                 if table[0:2] == '"(':
                     # table == query (DB manager)
                     query = table.strip('"()')
                 else:
                     query = "SELECT * FROM %s /**WHERE TILE && geom*/" % table
-                args['query_0'] = query
-                args['lod']="0 10000"
-                args['tile_size'] = 2000
+
+
+                if layer.hasScaleBasedVisibility():
+                    # TODO : conversion from 1:N scale to distance to ground
+                    args['lod'] = "%f %f" % (layer.minimumScale(), layer.maximumScale() )
+                    args['query_0'] = query
+                    args['tile_size'] = 2000 # TODO: how to set it ?
+                else:
+                    args['query'] = query
                     
                 self.sendToViewer( 'loadVectorPostgis', args )
                 self.layers[ layer ] = LayerInfo( layer.id(), False )
@@ -257,7 +262,11 @@ class Canvas3D:
         visibleLayers = self.iface.mapCanvas().mapRenderer().layerSet()
 
         for lid, l in layers.iteritems():
+            self.addLayer( l )
             if l.id() in visibleLayers:
-                self.onLayerAdded( l )
+                self.setLayerVisibility( l, True )
+            else:
+                self.setLayerVisibility( l, False )
+
 
 
