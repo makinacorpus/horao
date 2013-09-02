@@ -1,4 +1,5 @@
 #include "PostGisUtils.h"
+#include "StringUtils.h"
 
 #include <osgDB/FileNameUtils>
 #include <osgDB/ReaderWriter>
@@ -14,7 +15,7 @@
 #include <map>
 
 
-#define DEBUG_OUT if (0) std::cout
+#define DEBUG_OUT if (1) std::cerr
 
 // for RAII of connection
 struct PostgisConnection
@@ -102,6 +103,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
                 && std::getline( line, value, '"' )){
             // remove spaces in key
             key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
+            value = unescapeXMLString(value);
             DEBUG_OUT << "key=\"" << key << "\" value=\"" << value << "\"\n";
             am.insert( std::make_pair( key, value ) );
         }

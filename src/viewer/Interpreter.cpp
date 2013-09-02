@@ -1,4 +1,7 @@
 #include "Interpreter.h"
+
+#include "StringUtils.h"
+
 #include <osgDB/ReadFile>
 #include <osg/Material>
 #include <osg/Geode>
@@ -7,10 +10,11 @@
 #include <iostream>
 #include <cassert>
 
+#define POSTGIS_EXTENSION ".postgis"
+
 namespace Stack3d {
 namespace Viewer {
-
-
+    
 Interpreter::Interpreter(volatile ViewerWidget * vw, const std::string & fileName )
     : _viewer( vw )
     , _inputFile( fileName )
@@ -39,19 +43,22 @@ void Interpreter::run()
                 && std::getline( ls, value, '"' )){
             // remove spaces in key
             key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
-            am[ key ] = value;
+            am[ key ] = unescapeXMLString( value );
         }
 
         if ( "help" == cmd ){
             help();
         }
-#define COMMAND( CMD ) \
-        else if ( #CMD == cmd  ){\
-            if ( !CMD( am ) ){\
-               ERROR << "cannot " << #CMD;\
-               std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
-               Log::instance().str("");\
-            }\
+#define COMMAND( CMD )                                                  \
+        else if ( #CMD == cmd  ){                                       \
+            if ( !CMD( am ) ){                                          \
+                ERROR << "cannot " << #CMD;                             \
+                std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n"; \
+            }                                                           \
+            else {                                                      \
+                std::cout << "<ok/>\n";                                 \
+            }                                                           \
+            Log::instance().str("");                                    \
         }
         COMMAND(loadVectorPostgis)
         COMMAND(loadRasterGDAL)
@@ -158,9 +165,9 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     const std::string lodIdx = intToString( ilod );
                     const std::string query = tileQuery( am.value("query_"+lodIdx ), xm, ym, xm+tileSize, ym+tileSize );
                     if (query.empty()) return false;
-                    const std::string pseudoFile = "conn_info=\"" + am.value("conn_info")       + "\" "
-                                                 + "center=\""    + am.value("center")          + "\" "
-                                                 + "query=\""     + query + "\".postgis";
+                    const std::string pseudoFile = "conn_info=\"" + escapeXMLString(am.value("conn_info"))       + "\" "
+                        + "center=\""    + escapeXMLString(am.value("center"))          + "\" "
+                        + "query=\""     + escapeXMLString(query) + "\"" + POSTGIS_EXTENSION;
 
                     pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
                     pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
@@ -177,9 +184,9 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
     // without LOD
     else{
       if ( am.value("query").empty() || !isQueryValid( am.value("query") ) ) return false;
-        const std::string pseudoFile = "conn_info=\""       + am.value("conn_info")       + "\" "
-                                     + "center=\""          + am.value("center")          + "\" "
-                                     + "query=\""           + am.value("query")           + "\".postgisd";
+      const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
+          + "center=\""          + escapeXMLString(am.value("center"))          + "\" "
+          + "query=\""           + escapeXMLString(am.value("query"))           + "\"" + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
             ERROR << "cannot create layer";
