@@ -212,6 +212,12 @@ void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )
        normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
     }
     normal.normalize();
+
+    if (( FLAGS_GET_Z( lwtriangle->flags ) == 0 ) && ( normal[2] < 0 )) {
+        // if this is a 2D surface and the normal is pointing down, reverse the triangle
+        normal[2] = 1;
+        std::swap( _tri[ offset ], _tri[offset + 2] );
+    }
     for (int i=0; i<3; i++) _nrml.push_back( normal );
 }
 
@@ -273,12 +279,15 @@ struct Tessellator
 void TriangleMesh::push_back( const LWPOLY * lwpoly )
 {
     assert( lwpoly );
+
     const int numRings = lwpoly->nrings;
     if ( numRings == 0 ) return;
 
     size_t totalNumVtx = 0;
     for ( int r = 0; r < numRings; r++) totalNumVtx += lwpoly->rings[r]->npoints;
     std::vector< GLdouble > coord( totalNumVtx*3 );
+
+    const size_t nTriangles = _tri.size();
 
     // retesselate and add rings
     Tessellator tesselator ;
@@ -302,8 +311,6 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
 
 
     //// Normal computation.
-    //// Not completely correct, but better than no normals at all. TODO: update this
-    //// to generate a proper normal vector in ECEF mode.
     ////
     //// We cannot accurately rely on triangles from the tessellation, since we could have
     //// very "degraded" triangles (close to a line), and the normal computation would be bad.
@@ -322,7 +329,16 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
        normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
     }
     normal.normalize();
+
+    if (( FLAGS_GET_Z( lwpoly->flags ) == 0 ) && ( normal[2] < 0 )) {
+        // if this is a 2D surface and the normal is pointing down, reverse each new triangle
+        normal[2] = 1;
+        for ( size_t i = nTriangles/3; i < _tri.size() / 3; ++i ) {
+            std::swap( _tri[3*i], _tri[3*i+2] );
+        }
+    }
     _nrml.resize( _vtx.size(), normal );
+
 }
 
 template< typename MULTITYPE >
