@@ -207,8 +207,8 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
 
         const int Lx = std::max( 1, int(meshSize * pixelPerMetreX) ) ;
         const int Ly = std::max( 1, int(meshSize * pixelPerMetreY) ) ;
-        w = w / Lx;
-        h = h / Ly;
+        w = w / Lx + 1 ;
+        h = h / Ly +1 ;
         hf->allocate( w, h );
         hf->setXInterval( Lx / pixelPerMetreX );
         hf->setYInterval( Ly / pixelPerMetreY );
