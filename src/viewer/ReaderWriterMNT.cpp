@@ -23,12 +23,40 @@
 #define DEBUG_OUT if (1) std::cout
 #define ERROR (std::cerr << "error: ")
 
+void MyErrorHandler(CPLErr , int /*err_no*/, const char *msg)
+{
+    ERROR << "from GDAL:" << msg << "\n";
+}
+
 struct ReaderWriterMNT : osgDB::ReaderWriter
 {
+
+    // for GDAL RAII
+    struct Dataset
+    {
+        Dataset( const std::string & file )
+           : _raster( (GDALDataset *) GDALOpen( file.c_str(), GA_ReadOnly ) )
+        {}
+
+        GDALDataset * operator->(){ return _raster; }
+        operator bool(){ return _raster;}
+
+        ~Dataset()
+        {
+            if (_raster) GDALClose( _raster );
+        }
+    private:
+        GDALDataset * _raster;
+    };
+
     ReaderWriterMNT()
     {
+        GDALAllRegister();
+        CPLSetErrorHandler( MyErrorHandler );	
+
         supportsExtension( "mnt", "MNT tif loader" );
         supportsExtension( "mntd", "MNT tif loader" );
+        DEBUG_OUT << "ctor of ReaderWriterMNT\n";
     }
 
     const char* className() const
@@ -95,14 +123,14 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
-        GDALAllRegister();
-        GDALDataset * raster = (GDALDataset *) GDALOpen( am["file"].c_str(), GA_ReadOnly );
+        Dataset raster( am["file"].c_str() );
+
         if ( ! raster ) {
-            ERROR << "Problem opening the dataset\n";
+            ERROR << "cannot open dataset from file=\"" << am["file"] << "\"\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
         if ( raster->GetRasterCount() < 1 ) {
-            ERROR << "Invalid number of bands\n";
+            ERROR << "invalid number of bands\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
@@ -123,10 +151,14 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         const double pixelPerMetreY = -1.f/transform[5]; // image is top->bottom
 
         // compute the position of the tile
-        int x= ( xmin - originX ) * pixelPerMetreX;
+        int x= ( xmin - originX ) * pixelPerMetreX ;
         int y= ( originY - ymax ) * pixelPerMetreY ;
-        int w= ( xmax - xmin ) * pixelPerMetreX ;
-        int h= ( ymax - ymin ) * pixelPerMetreY ;
+        int w= std::min( pixelWidth-x, int( ( xmax - xmin ) * pixelPerMetreX ) ) ;
+        int h= std::min( pixelHeight-y, int( ( ymax - ymin ) * pixelPerMetreY ) ) ;
+        //int x= std::max(0, int( std::floor( ( xmin - originX ) * pixelPerMetreX ) ) );
+        //int y= std::max(0, int( std::floor( ( originY - ymax ) * pixelPerMetreY ) ) );
+        //int w= std::min(pixelWidth-x, int( std::ceil( ( xmax - xmin ) * pixelPerMetreX ) ) );
+        //int h= std::min(pixelWidth-y, int( std::ceil( ( ymax - ymin ) * pixelPerMetreY ) ) );
 
         DEBUG_OUT << std::setprecision(8) << " xmin=" << xmin << " ymin=" << ymin << " xmax=" << xmax << " ymax=" << ymax << "\n"; 
         DEBUG_OUT << " originX=" << originX << " originY=" << originY << " pixelWidth=" << pixelWidth << " pixelHeight=" << pixelHeight 
@@ -135,19 +167,19 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             << "\n"; 
         DEBUG_OUT << " x=" << x << " y=" << y << " w=" << w << " h=" << h << "\n"; 
 
-        if ( x<0 || y<0 || (x + w) > pixelWidth || (y + h) > pixelHeight ){
-            ERROR << "specified extent=\"" << am["extent"] 
-                << "\" is not covered by file=\"" << am["file"] 
-                << "\" (file extend=\"" 
-                << std::setprecision(8)
-                << originX << " " << originY << "," 
-                << originX + pixelWidth * transform[1] << " "
-                << originY + pixelHeight * transform[5] << "\")\n ";
-            return ReadResult::ERROR_IN_READING_FILE;
-        }
+        //if ( x<0 || y<0 || (x + w) > pixelWidth || (y + h) > pixelHeight ){
+        //    ERROR << "specified extent=\"" << am["extent"] 
+        //        << "\" is not covered by file=\"" << am["file"] 
+        //        << "\" (file extend=\"" 
+        //        << std::setprecision(16)
+        //        << originX << " " << originY + pixelHeight * transform[5] << "," 
+        //        << originX + pixelWidth * transform[1] << " "
+        //        <<  originY << "\")\n ";
+        //    return ReadResult::ERROR_IN_READING_FILE;
+        //}
 
-        assert( x >= 0 && x + w <= pixelWidth );
-        assert( y >= 0 && y + h <= pixelHeight );
+        //assert( x >= 0 && x + w <= pixelWidth );
+        //assert( y >= 0 && y + h <= pixelHeight );
         assert( h >= 0 && w >= 0 );
 
         osg::ref_ptr<osg::HeightField> hf( new osg::HeightField() );
@@ -187,7 +219,7 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         for ( int i = 0; i < h; ++i ) {
             for ( int j = 0; j < w; ++j ) {
                 const float z = float( (SRCVAL(blockData, dType, i*w+j) * dataScale)  + dataOffset );
-                hf->setHeight( j, i, z );
+                hf->setHeight( j, h-1-i, z );
                 zMax = std::max( z, zMax );
 
             }

@@ -242,7 +242,7 @@ ViewerWidget::ViewerWidget():
         //camera->setViewport( new osg::Viewport( 0, 0, traits->width, traits->height ) );
         //camera->setProjectionMatrixAsPerspective( 30.0f, double( traits->width )/double( traits->height ), 1.0f, 10000.0f );
         //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
-        //camera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+        //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
 
         _root = new osg::Group;
         setSceneData( _root.get() );
@@ -257,7 +257,8 @@ ViewerWidget::ViewerWidget():
         getLight()->setSpecular(osg::Vec4( 0.9,0.9,0.9,1 ));
 
         addEventHandler( new osgViewer::StatsHandler );
-        setCameraManipulator( new osgGA::TerrainManipulator );
+        //setCameraManipulator( new osgGA::TerrainManipulator );
+        setCameraManipulator( new osgGA::TrackballManipulator );
         
         addEventHandler(new osgViewer::WindowSizeHandler);
         addEventHandler(new osgViewer::StatsHandler);

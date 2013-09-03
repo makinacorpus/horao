@@ -8,6 +8,7 @@
 #include <osg/ShapeDrawable>
 
 #include <iostream>
+#include <iomanip>
 #include <cassert>
 
 #define POSTGIS_EXTENSION ".postgis"
@@ -266,7 +267,8 @@ bool Interpreter::loadElevation(const AttributeMap & am)
                 for (size_t ilod = 0; ilod < lodDistance.size()-1; ilod++){
                     const std::string lodIdx = intToString( ilod );
                     std::stringstream extent;
-                    extent << xm << " " << ym << "," << xm+tileSize << " " << ym+tileSize;
+                    extent << std::setprecision(16) 
+                        << xm << " " << ym << "," << xm+tileSize << " " << ym+tileSize;
                     const std::string pseudoFile = 
                           "file=\""      + escapeXMLString(am.value("file"))              + "\" "
                         + "origin=\""    + escapeXMLString(am.value("origin"))            + "\" "

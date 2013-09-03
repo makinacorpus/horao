@@ -19,8 +19,9 @@
 
 
 addPlane id="p0" origin="1845599 5177401  1" extent="1829995 5150995,1869005 5195005"
-#loadElevation id="el" origin="1845599 5177401 0" mesh_size="50"  extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
-loadElevation id="el" origin="1845599 5177401 0" lod="10 2000 30000" tile_size="2000" mesh_size_0="10" mesh_size_1="50"  extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
-setSymbology id="el" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000ff" fill_color_specular="#ffffffff" fill_color_shininess="4."
+loadElevation id="el0" origin="1845599 5177401 0" mesh_size="50"  extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
+loadElevation id="el1" origin="1845599 5177401 0" lod="10000 200000" tile_size="10000" mesh_size_0="66"  extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
+setSymbology id="el0" fill_color_diffuse="#00ff00aa" fill_color_ambient="#00ff00aa" fill_color_specular="#000000ff" fill_color_shininess="4."
+setSymbology id="el1" fill_color_diffuse="#ff0000aa" fill_color_ambient="#ff0000aa" fill_color_specular="#000000ff" fill_color_shininess="4."
 
 
