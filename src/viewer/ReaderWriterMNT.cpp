@@ -117,6 +117,11 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
+        if ( xmin > xmax || ymin > ymax ){
+            ERROR << "cannot parse extent=\"" << am["extent"] << "\" xmin must be inferior to xmax and ymin to ymax in extend=\"min ymin,xmax ymx\"\n";;
+            return ReadResult::ERROR_IN_READING_FILE;
+        }
+
         double meshSize;
         if ( !(std::istringstream( am["mesh_size"] ) >> meshSize ) ){
             ERROR << "cannot parse mesh_size=\"" << am["mesh_size"] << "\"\n";
@@ -150,15 +155,31 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         const double pixelPerMetreX =  1.f/transform[1];
         const double pixelPerMetreY = -1.f/transform[5]; // image is top->bottom
 
+        assert( pixelPerMetreX > 0 && pixelPerMetreY > 0 );
+
         // compute the position of the tile
-        int x= ( xmin - originX ) * pixelPerMetreX ;
-        int y= ( originY - ymax ) * pixelPerMetreY ;
-        int w= std::min( pixelWidth-x, int( ( xmax - xmin ) * pixelPerMetreX ) ) ;
-        int h= std::min( pixelHeight-y, int( ( ymax - ymin ) * pixelPerMetreY ) ) ;
-        //int x= std::max(0, int( std::floor( ( xmin - originX ) * pixelPerMetreX ) ) );
-        //int y= std::max(0, int( std::floor( ( originY - ymax ) * pixelPerMetreY ) ) );
-        //int w= std::min(pixelWidth-x, int( std::ceil( ( xmax - xmin ) * pixelPerMetreX ) ) );
-        //int h= std::min(pixelWidth-y, int( std::ceil( ( ymax - ymin ) * pixelPerMetreY ) ) );
+        int x= std::floor(( xmin - originX ) * pixelPerMetreX) ;
+        int y= std::floor(( originY - ymax ) * pixelPerMetreY) ;
+        int w= std::ceil(( xmax - xmin ) * pixelPerMetreX) ;
+        int h= std::ceil(( ymax - ymin ) * pixelPerMetreY) ;
+
+        // resize to fit data (avoid out of bound)
+        if ( y < 0 ){
+            h = std::max(0, h+y);
+            y=0;
+        }
+        if ( y + h > pixelHeight ){
+            h = std::max(0, pixelHeight - y);
+        }
+
+        if ( x < 0 ){
+            w = std::max(0, w+x);
+            x=0;
+        }
+        if ( x + w > pixelWidth ){
+            w = std::max(0, pixelWidth - x);
+        }
+
 
         DEBUG_OUT << std::setprecision(8) << " xmin=" << xmin << " ymin=" << ymin << " xmax=" << xmax << " ymax=" << ymax << "\n"; 
         DEBUG_OUT << " originX=" << originX << " originY=" << originY << " pixelWidth=" << pixelWidth << " pixelHeight=" << pixelHeight 
@@ -200,7 +221,9 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         std::vector<char> buffer( w * h * dSizeBits / 8  );
         char* blockData = &buffer[0];
 
-        band->RasterIO( GF_Read, x, y, w * Lx, h * Ly, blockData, w, h, dType, 0, 0 ); 
+        if (buffer.size()){
+           band->RasterIO( GF_Read, x, y, w * Lx, h * Ly, blockData, w, h, dType, 0, 0 ); 
+        }
 
         double dataOffset;
         double dataScale;
