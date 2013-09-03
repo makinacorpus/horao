@@ -11,6 +11,7 @@
 #include <cassert>
 
 #define POSTGIS_EXTENSION ".postgis"
+#define MNT_EXTENSION ".mnt"
 
 namespace Stack3d {
 namespace Viewer {
@@ -210,10 +211,95 @@ bool Interpreter::loadRasterGDAL(const AttributeMap & )
     return false;
 }
 
-bool Interpreter::loadElevation(const AttributeMap & )
+bool Interpreter::loadElevation(const AttributeMap & am)
 {
-    ERROR << "not implemented";
-    return false;
+    if ( am.value("id").empty() 
+      || am.value("origin").empty()
+      || am.value("extent").empty()
+      || am.value("file").empty()
+      ) return false;
+
+    // with LOD
+    if ( ! am.optionalValue("lod").empty() ){
+        std::vector<  double > lodDistance;
+        if ( am.value("tile_size").empty() ) return false;
+        std::stringstream levels(am.optionalValue("lod"));
+        std::string l;
+        while ( std::getline( levels, l, ' ' ) ){
+           lodDistance.push_back( atof(l.c_str() ) );
+           const int idx = lodDistance.size()-2;
+           if (idx < 0) continue;
+           const std::string lodIdx = intToString( idx );
+           if ( am.value("mesh_size_"+lodIdx ).empty() ) return false;
+        }
+        
+        float xmin, ymin, xmax, ymax;
+        std::stringstream ext( am.value("extent") );
+        if ( !(ext >> xmin >> ymin)
+            || !std::getline(ext, l, ',')
+            || !(ext >> xmax >> ymax) ) {
+            ERROR << "cannot parse extent";
+            return false;
+        }
+
+        float tileSize;
+        if (!(std::stringstream(am.value("tile_size")) >> tileSize) || tileSize <= 0 ){
+            ERROR << "cannot parse tile_size";
+            return false;
+        }
+
+        osg::Vec3 origin(0,0,0);
+        if (!(std::stringstream(am.value("origin")) >> origin.x() >> origin.y() ) ){
+            ERROR << "cannot parse origin";
+            return false;
+        }
+
+        const size_t numTilesX = (xmax-xmin)/tileSize + 1;
+        const size_t numTilesY = (ymax-ymin)/tileSize + 1;
+
+        osg::ref_ptr<osg::Group> group = new osg::Group;
+        for (size_t ix=0; ix<numTilesX; ix++){
+            for (size_t iy=0; iy<numTilesY; iy++){
+                osg::ref_ptr<osg::PagedLOD> pagedLod = new osg::PagedLOD;
+                const float xm = xmin + ix*tileSize;
+                const float ym = ymin + iy*tileSize;
+                for (size_t ilod = 0; ilod < lodDistance.size()-1; ilod++){
+                    const std::string lodIdx = intToString( ilod );
+                    std::stringstream extent;
+                    extent << xm << " " << ym << "," << xm+tileSize << " " << ym+tileSize;
+                    const std::string pseudoFile = 
+                          "file=\""      + escapeXMLString(am.value("file"))              + "\" "
+                        + "origin=\""    + escapeXMLString(am.value("origin"))            + "\" "
+                        + "mesh_size=\"" + escapeXMLString(am.value("mesh_size_"+lodIdx)) + "\" "
+                        + "extent=\""    + extent.str()                                   + "\" " + MNT_EXTENSION;
+
+                    pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
+                    pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
+                }
+                pagedLod->setCenter( osg::Vec3( xm+.5*tileSize, ym+.5*tileSize ,0) - origin );
+                pagedLod->setRadius( .5*tileSize*std::sqrt(2.0) );
+                group->addChild( pagedLod.get() );
+            }
+        }
+        if (!_viewer->addNode( am.value("id"), group.get() )) return false;
+    }
+    // without LOD
+    else{
+      if ( am.value("mesh_size").empty() ) return false;
+        const std::string pseudoFile = 
+              "file=\""      + escapeXMLString(am.value("file"))              + "\" "
+            + "origin=\""    + escapeXMLString(am.value("origin"))            + "\" "
+            + "mesh_size=\"" + escapeXMLString(am.value("mesh_size"))         + "\" "
+            + "extent=\""    + escapeXMLString(am.value("extent"))            + "\" " + MNT_EXTENSION;
+        osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
+        if (!node.get() ){
+            ERROR << "cannot create layer";
+            return false;
+        }
+        if (!_viewer->addNode( am.value("id"), node.get() )) return false;
+    }
+
+    return true;
 }
 
 bool Interpreter::unloadLayer( const AttributeMap& am )

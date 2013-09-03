@@ -50,9 +50,9 @@ osg::HeightField* getTerrainTile( GDALRasterBand* band, int x, int y, int w, int
         dataScale = 1.0;
     }
 
-    for ( int y = 0; y < h; ++y ) {
-        for ( int x = 0; x < w; ++x ) {
-            hf->setHeight( x, y, float( (SRCVAL(blockData, dType, y*w+x) * dataScale)  + dataOffset ) );
+    for ( int i = 0; i < h; ++i ) {
+        for ( int j = 0; j < w; ++j ) {
+            hf->setHeight( j, i, float( (SRCVAL(blockData, dType, i*w+j) * dataScale)  + dataOffset ) );
         }
     }
 

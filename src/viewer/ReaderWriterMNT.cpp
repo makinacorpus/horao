@@ -1,3 +1,4 @@
+#include "StringUtils.h"
 
 #include <osgDB/FileNameUtils>
 #include <osgDB/ReaderWriter>
@@ -5,6 +6,7 @@
 #include <osgDB/ReadFile>
 #include <osg/ShapeDrawable>
 #include <osg/MatrixTransform>
+#include <osg/PositionAttitudeTransform>
 #include <osgUtil/Optimizer>
 #include <osgTerrain/Terrain>
 
@@ -18,7 +20,7 @@
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 
-#define DEBUG_OUT if (0) std::cout
+#define DEBUG_OUT if (1) std::cout
 #define ERROR (std::cerr << "error: ")
 
 struct ReaderWriterMNT : osgDB::ReaderWriter
@@ -61,20 +63,21 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
                 && std::getline( line, value, '"' )){
             // remove spaces in key
             key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
+            value = unescapeXMLString(value);
             DEBUG_OUT << "key=\"" << key << "\" value=\"" << value << "\"\n";
             am.insert( std::make_pair( key, value ) );
         }
 
         // define transfo  layerToWord
-        osg::Matrixd layerToWord;
-        {
-            osg::Vec3d origin;
-            if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
-                ERROR << "failed to obtain origin=\"" << am["origin"] <<"\"\n";
-                return ReadResult::ERROR_IN_READING_FILE;
-            }
-            layerToWord.makeTranslate( -origin );
+        //osg::Matrixd layerToWord;
+        //{
+        osg::Vec3d origin;
+        if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
+            ERROR << "failed to obtain origin=\"" << am["origin"] <<"\"\n";
+            return ReadResult::ERROR_IN_READING_FILE;
         }
+        //layerToWord.makeTranslate( -origin );
+        //}
 
         double xmin, ymin, xmax, ymax;
         std::stringstream ext( am["extent"] );
@@ -154,8 +157,9 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         w = w / Lx;
         h = h / Ly;
         hf->allocate( w, h );
-        hf->setXInterval( pixelPerMetreX * Lx );
-        hf->setYInterval( pixelPerMetreY * Ly );
+        hf->setXInterval( Lx / pixelPerMetreX );
+        hf->setYInterval( Ly / pixelPerMetreY );
+        hf->setOrigin( osg::Vec3(xmin, ymin, 0) - origin );
 
         GDALRasterBand * band = raster->GetRasterBand( 1 );
         GDALDataType dType = band->GetRasterDataType();
@@ -179,18 +183,23 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             dataScale = 1.0;
         }
 
-        for ( int y = 0; y < h; ++y ) {
-            for ( int x = 0; x < w; ++x ) {
-                hf->setHeight( x, y, float( (SRCVAL(blockData, dType, y*w+x) * dataScale)  + dataOffset ) );
+        float zMax = 0;
+        for ( int i = 0; i < h; ++i ) {
+            for ( int j = 0; j < w; ++j ) {
+                const float z = float( (SRCVAL(blockData, dType, i*w+j) * dataScale)  + dataOffset );
+                hf->setHeight( j, i, z );
+                zMax = std::max( z, zMax );
+
             }
         }
+        DEBUG_OUT << "zMax=" << zMax << "\n";
 
         hf->setSkirtHeight(10);
 
         DEBUG_OUT << "loaded in " << timer.time_s() << "sec\n";
 
         osg::Geode * geode = new osg::Geode;
-        geode->addDrawable( new osg::ShapeDrawable(hf.get()) );
+        geode->addDrawable( new osg::ShapeDrawable( hf.get() ) );
         return geode;
     }
 };
