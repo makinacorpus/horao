@@ -89,19 +89,25 @@ const std::string intToString( int i )
 
 bool Interpreter::addPlane( const AttributeMap & am )
 {
-    if ( am.value("id").empty() || am.value("extend").empty() ) return false;
+    if ( am.value("id").empty() || am.value("extent").empty() ) return false;
 
-    float xmin, ymin, xmax, ymax;
-    std::stringstream ext( am.value("extend") );
+    double xmin, ymin, xmax, ymax;
+    std::stringstream ext( am.value("extent") );
     std::string l;
     if ( !(ext >> xmin >> ymin)
         || !std::getline(ext, l, ',')
         || !(ext >> xmax >> ymax) ) {
-        ERROR << "cannot parse extend";
+        ERROR << "cannot parse extent";
         return false;
     }
 
-    osg::Box* unitCube = new osg::Box( osg::Vec3(xmax-xmin, ymax-ymin,-2)/2, xmax-xmin, ymax-ymin, 0);
+    osg::Vec3d origin;
+    if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
+        ERROR << "cannot parse origin";
+        return false;
+    }
+
+    osg::Box* unitCube = new osg::Box( osg::Vec3(xmin, ymin, 0) + osg::Vec3(xmax-xmin, ymax-ymin, 0)*.5f - origin, xmax-xmin, ymax-ymin, 0);
     osg::ShapeDrawable* plane = new osg::ShapeDrawable(unitCube);
     osg::Geode* geode = new osg::Geode();
     geode->addDrawable( plane );
@@ -112,13 +118,13 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
     if ( am.value("id").empty() 
       || am.value("conn_info").empty() 
-      || am.value("center").empty()
+      || am.value("origin").empty()
       ) return false;
 
     // with LOD
     if ( ! am.optionalValue("lod").empty() ){
         std::vector<  double > lodDistance;
-        if ( am.value("extend").empty() ||  am.value("tile_size").empty() ) return false;
+        if ( am.value("extent").empty() ||  am.value("tile_size").empty() ) return false;
         std::stringstream levels(am.optionalValue("lod"));
         std::string l;
         while ( std::getline( levels, l, ' ' ) ){
@@ -131,11 +137,11 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
         }
         
         float xmin, ymin, xmax, ymax;
-        std::stringstream ext( am.value("extend") );
+        std::stringstream ext( am.value("extent") );
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            ERROR << "cannot parse extend";
+            ERROR << "cannot parse extent";
             return false;
         }
 
@@ -145,9 +151,9 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
             return false;
         }
 
-        osg::Vec3 center(0,0,0);
-        if (!(std::stringstream(am.value("center")) >> center.x() >> center.y() ) ){
-            ERROR << "cannot parse center";
+        osg::Vec3 origin(0,0,0);
+        if (!(std::stringstream(am.value("origin")) >> origin.x() >> origin.y() ) ){
+            ERROR << "cannot parse origin";
             return false;
         }
 
@@ -166,13 +172,13 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     const std::string query = tileQuery( am.value("query_"+lodIdx ), xm, ym, xm+tileSize, ym+tileSize );
                     if (query.empty()) return false;
                     const std::string pseudoFile = "conn_info=\"" + escapeXMLString(am.value("conn_info"))       + "\" "
-                        + "center=\""    + escapeXMLString(am.value("center"))          + "\" "
+                        + "origin=\""    + escapeXMLString(am.value("origin"))          + "\" "
                         + "query=\""     + escapeXMLString(query) + "\"" + POSTGIS_EXTENSION;
 
                     pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
                     pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
                 }
-                pagedLod->setCenter( osg::Vec3( xm+.5*tileSize, ym+.5*tileSize ,0) - center );
+                pagedLod->setCenter( osg::Vec3( xm+.5*tileSize, ym+.5*tileSize ,0) - origin );
                 pagedLod->setRadius( .5*tileSize*std::sqrt(2.0) );
                 group->addChild( pagedLod.get() );
             }
@@ -185,7 +191,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
     else{
       if ( am.value("query").empty() || !isQueryValid( am.value("query") ) ) return false;
       const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
-          + "center=\""          + escapeXMLString(am.value("center"))          + "\" "
+          + "origin=\""          + escapeXMLString(am.value("origin"))          + "\" "
           + "query=\""           + escapeXMLString(am.value("query"))           + "\"" + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){

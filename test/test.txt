@@ -1,22 +1,22 @@
-#loadVectorPostgis id="l1" conn_info="dbname='paris'" feature_id="gid" geometry_column="geom" center="593093 123976" query="SELECT gid,geom FROM bati_extru /**WHERE TILE && geom*/ "
+#loadVectorPostgis id="l1" conn_info="dbname='paris'" feature_id="gid" geometry_column="geom" origin="593093 123976 0" query="SELECT gid,geom FROM bati_extru /**WHERE TILE && geom*/ "
 
-#loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" lod="10 100000"  feature_id_0="gid" geometry_column_0="geom" query_0="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
+#loadVectorPostgis id="l1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="1000" origin="593093 123976" lod="10 100000"  feature_id_0="gid" geometry_column_0="geom" query_0="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
 
-addPlane id="p0" extend="593093 123976,605824 133525"
+addPlane id="p0" origin="593093 123976 1" extent="593093 123976,605824 133525"
 setSymbology id="p0" fill_color="#999999ff"
 
-loadVectorPostgis id="l1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" lod="10 2000 30000" query_0="SELECT geom FROM bati_extru /**WHERE TILE && geom*/ " query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
+loadVectorPostgis id="l1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="1000" origin="593093 123976 0" lod="10 2000 30000" query_0="SELECT geom FROM bati_extru /**WHERE TILE && geom*/ " query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
 
-loadVectorPostgis id="b1" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="200" center="593093 123976" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 10 AS width FROM bati /**WHERE TILE && geom*/ "
+loadVectorPostgis id="b1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="200" origin="593093 123976 0" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 10 AS width FROM bati /**WHERE TILE && geom*/ "
 
 setSymbology id="l1" fill_color_diffuse="#c0c0c0ff" fill_color_ambient="#c0c0c0ff"
 
 setSymbology id="b1" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000ff" fill_color_specular="#ffffffff" fill_color_shininess="64."
 
 
-#loadVectorPostgis id="l2" conn_info="dbname='paris'" extend="593093 123976,605824 133525" tile_size="1000" center="593093 123976" query="SELECT ST_REVERSE(geom) AS geom FROM srtm_paris_rid_seq /**WHERE TILE && geom*/ "
+#loadVectorPostgis id="l2" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="1000" origin="593093 123976 0" query="SELECT ST_REVERSE(geom) AS geom FROM srtm_paris_rid_seq /**WHERE TILE && geom*/ "
 
 #setSymbology id="l2" fill_color_diffuse="#800000ff" fill_color_ambient="#800000ff"
 
-#"center=\"593093 123976\" file=\"/home/mora/foss4G_2013_demo/MNT2009_Altitude_10m_CC46.tif\"".mntd
+#"origin=\"593093 123976\" file=\"/home/mora/foss4G_2013_demo/MNT2009_Altitude_10m_CC46.tif\"".mntd
 

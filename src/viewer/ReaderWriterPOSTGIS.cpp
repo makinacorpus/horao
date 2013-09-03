@@ -134,12 +134,12 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         // define transfo  layerToWord
         osg::Matrixd layerToWord;
         {
-            osg::Vec3d center(0,0,0);
-            if ( !( std::stringstream( am["center"] ) >> center.x() >> center.y() ) ){
-                std::cerr << "failed to obtain center=\""<< am["center"] <<"\"\n";
+            osg::Vec3d origin;
+            if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
+                std::cerr << "failed to obtain origin=\""<< am["origin"] <<"\"\n";
                 return ReadResult::ERROR_IN_READING_FILE;
             }
-            layerToWord.makeTranslate( -center );
+            layerToWord.makeTranslate( -origin );
         }
 
         osg::ref_ptr<osg::Geode> group = new osg::Geode();

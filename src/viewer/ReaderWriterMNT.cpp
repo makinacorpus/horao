@@ -9,14 +9,17 @@
 #include <osgTerrain/Terrain>
 
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <algorithm>
 #include <map>
+#include <cassert>
 
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 
-#define DEBUG_OUT if (1) std::cout
+#define DEBUG_OUT if (0) std::cout
+#define ERROR (std::cerr << "error: ")
 
 struct ReaderWriterMNT : osgDB::ReaderWriter
 {
@@ -65,53 +68,103 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         // define transfo  layerToWord
         osg::Matrixd layerToWord;
         {
-            osg::Vec3d center(0,0,0);
-            if ( !( std::stringstream( am["center"] ) >> center.x() >> center.y() ) ){
-                std::cerr << "failed to obtain center=\""<< am["center"] <<"\"\n";
+            osg::Vec3d origin;
+            if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
+                ERROR << "failed to obtain origin=\"" << am["origin"] <<"\"\n";
                 return ReadResult::ERROR_IN_READING_FILE;
             }
-            layerToWord.makeTranslate( -center );
+            layerToWord.makeTranslate( -origin );
+        }
+
+        double xmin, ymin, xmax, ymax;
+        std::stringstream ext( am["extent"] );
+        std::string l;
+        if ( !(ext >> xmin >> ymin)
+            || !std::getline(ext, l, ',')
+            || !(ext >> xmax >> ymax) ) {
+            ERROR << "cannot parse extent=\"" << am["extent"] << "\"\n";;
+            return ReadResult::ERROR_IN_READING_FILE;
+        }
+
+        double meshSize;
+        if ( !(std::istringstream( am["mesh_size"] ) >> meshSize ) ){
+            ERROR << "cannot parse mesh_size=\"" << am["mesh_size"] << "\"\n";
+            return ReadResult::ERROR_IN_READING_FILE;
         }
 
         GDALAllRegister();
         GDALDataset * raster = (GDALDataset *) GDALOpen( am["file"].c_str(), GA_ReadOnly );
         if ( ! raster ) {
-            std::cerr << "Problem opening the dataset\n";
+            ERROR << "Problem opening the dataset\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
         if ( raster->GetRasterCount() < 1 ) {
-            std::cerr << "Invalid number of bands\n";
+            ERROR << "Invalid number of bands\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
-        //int pixelWidth = raster->GetRasterXSize();
-        //int pixelHeight = raster->GetRasterYSize();
+        const int pixelWidth = raster->GetRasterXSize();
+        const int pixelHeight = raster->GetRasterYSize();
 
         double transform[6];
         raster->GetGeoTransform( transform );
 
-        GDALRasterBand * band = raster->GetRasterBand( 1 );
-        
-        int x=0;
-        int y=0;
-        int w=100;
-        int h=100;
+        // assume square pixels
+        assert( std::abs(transform[4]) < FLT_EPSILON );
+        assert( std::abs(transform[2]) < FLT_EPSILON );
 
+        const double originX = transform[0];
+        const double originY = transform[3];
+        
+        const double pixelPerMetreX =  1.f/transform[1];
+        const double pixelPerMetreY = -1.f/transform[5]; // image is top->bottom
+
+        // compute the position of the tile
+        int x= ( xmin - originX ) * pixelPerMetreX;
+        int y= ( originY - ymax ) * pixelPerMetreY ;
+        int w= ( xmax - xmin ) * pixelPerMetreX ;
+        int h= ( ymax - ymin ) * pixelPerMetreY ;
+
+        DEBUG_OUT << std::setprecision(8) << " xmin=" << xmin << " ymin=" << ymin << " xmax=" << xmax << " ymax=" << ymax << "\n"; 
+        DEBUG_OUT << " originX=" << originX << " originY=" << originY << " pixelWidth=" << pixelWidth << " pixelHeight=" << pixelHeight 
+            << " pixelPerMetreX=" << pixelPerMetreX 
+            << " pixelPerMetreY=" << pixelPerMetreY
+            << "\n"; 
+        DEBUG_OUT << " x=" << x << " y=" << y << " w=" << w << " h=" << h << "\n"; 
+
+        if ( x<0 || y<0 || (x + w) > pixelWidth || (y + h) > pixelHeight ){
+            ERROR << "specified extent=\"" << am["extent"] 
+                << "\" is not covered by file=\"" << am["file"] 
+                << "\" (file extend=\"" 
+                << std::setprecision(8)
+                << originX << " " << originY << "," 
+                << originX + pixelWidth * transform[1] << " "
+                << originY + pixelHeight * transform[5] << "\")\n ";
+            return ReadResult::ERROR_IN_READING_FILE;
+        }
+
+        assert( x >= 0 && x + w <= pixelWidth );
+        assert( y >= 0 && y + h <= pixelHeight );
+        assert( h >= 0 && w >= 0 );
 
         osg::ref_ptr<osg::HeightField> hf( new osg::HeightField() );
 
-        int L = 1 << atoi(am["level"].c_str());
-        w = w / L;
-        h = h / L;
+        const int Lx = std::max( 1, int(meshSize * pixelPerMetreX) ) ;
+        const int Ly = std::max( 1, int(meshSize * pixelPerMetreY) ) ;
+        w = w / Lx;
+        h = h / Ly;
         hf->allocate( w, h );
+        hf->setXInterval( pixelPerMetreX * Lx );
+        hf->setYInterval( pixelPerMetreY * Ly );
 
+        GDALRasterBand * band = raster->GetRasterBand( 1 );
         GDALDataType dType = band->GetRasterDataType();
         int dSizeBits = GDALGetDataTypeSize( dType );
         // vector is automatically deleted, and data are contiguous
         std::vector<char> buffer( w * h * dSizeBits / 8  );
         char* blockData = &buffer[0];
 
-        band->RasterIO( GF_Read, x, y, w * L, h * L, blockData, w, h, dType, 0, 0 ); 
+        band->RasterIO( GF_Read, x, y, w * Lx, h * Ly, blockData, w, h, dType, 0, 0 ); 
 
         double dataOffset;
         double dataScale;
@@ -122,6 +175,7 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         }
         dataScale = band->GetScale( &ok );
         if ( ! ok ) {
+            ERROR << "cannot get scale\n";
             dataScale = 1.0;
         }
 
@@ -130,9 +184,6 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
                 hf->setHeight( x, y, float( (SRCVAL(blockData, dType, y*w+x) * dataScale)  + dataOffset ) );
             }
         }
-
-        //raster->GetGeoTransform( _transform );
-
 
         hf->setSkirtHeight(10);
 
