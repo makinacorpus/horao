@@ -297,7 +297,7 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
         gluTessBeginContour(tesselator._tess);                      // outer quad
         const int ringSize = lwpoly->rings[r]->npoints;
         for( int v = 0; v < ringSize - 1; v++ ) {
-            const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v ? v : ringSize - 1 - v );
+            const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v );
             const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
             coord[currIdx + 0] = p.x();
             coord[currIdx + 1] = p.y();
