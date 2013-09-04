@@ -1,6 +1,7 @@
 #include "Interpreter.h"
 
 #include "StringUtils.h"
+#include "SkyBox.h"
 
 #include <osgDB/ReadFile>
 #include <osg/Material>
@@ -71,6 +72,7 @@ void Interpreter::run()
         COMMAND(setSymbology)
         COMMAND(setFullExtent)
         COMMAND(addPlane)
+        COMMAND(addSky)
         else{
             ERROR << "unknown command '" << cmd << "'.";
             std::cout << "<error msg=\"" << Log::instance().str() << "\"/>\n";
@@ -87,6 +89,38 @@ const std::string intToString( int i )
     std::stringstream s;
     s << i;
     return s.str();
+}
+
+bool Interpreter::addSky( const AttributeMap & am )
+{
+    if ( am.value("id").empty() || am.value("image").empty() || am.value("radius").empty() ) return false;
+
+    double radius;
+    if (!(std::stringstream( am.value("radius") ) >> radius ) ){
+        ERROR << "cannot parse radius=\"" << am.value("radius") << "\"\n";
+        return false;
+    }
+
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode;
+    geode->addDrawable( new osg::ShapeDrawable( new osg::Sphere(osg::Vec3(), radius)) );
+ 
+    osg::Image* posX = osgDB::readImageFile( "posX_"+am.value("image"));
+    osg::Image* negX = osgDB::readImageFile( "negX_"+am.value("image"));
+    osg::Image* posY = osgDB::readImageFile( "posY_"+am.value("image"));
+    osg::Image* negY = osgDB::readImageFile( "negY_"+am.value("image"));
+    osg::Image* posZ = osgDB::readImageFile( "posZ_"+am.value("image"));
+    osg::Image* negZ = osgDB::readImageFile( "negZ_"+am.value("image"));
+    if ( !( posX && negX && posY && negY && posZ && negZ ) ){
+        ERROR << "cannot find image=\"" << am.value("image") << "\"\n";
+        return false;
+    }
+    
+    osg::ref_ptr<SkyBox> skybox = new SkyBox;
+    skybox->getOrCreateStateSet()->setTextureAttributeAndModes( 0, new osg::TexGen );
+    skybox->setEnvironmentMap( 0, posX, negX, posY, negY, posZ, negZ );
+    skybox->addChild( geode.get() );
+
+    return _viewer->addNode( am.value("id"), skybox.get() );
 }
 
 bool Interpreter::addPlane( const AttributeMap & am )
