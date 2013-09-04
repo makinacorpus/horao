@@ -5,25 +5,25 @@
 #"origin=\"593093 123976\" file=\"/home/mora/foss4G_2013_demo/MNT2009_Altitude_10m_CC46.tif\"".mntd
 
 
-##addPlane id="p0" origin="593093 123976 1" extent="593093 123976,605824 133525"
-##setSymbology id="p0" fill_color="#999999ff"
-##
-##loadVectorPostgis id="l1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="1000" origin="593093 123976 0" lod="10 2000 30000" query_0="SELECT geom FROM bati_extru /**WHERE TILE && geom*/ " query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
-##
-##loadVectorPostgis id="b1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="200" origin="593093 123976 0" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 10 AS width FROM bati /**WHERE TILE && geom*/ "
-##
-##setSymbology id="l1" fill_color_diffuse="#c0c0c0ff" fill_color_ambient="#c0c0c0ff"
-##
-##setSymbology id="b1" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000ff" fill_color_specular="#ffffffff" fill_color_shininess="64."
-##
+addPlane id="p0" origin="593093 123976 1" extent="593093 123976,605824 133525"
+setSymbology id="p0" fill_color="#999999ff"
+
+loadVectorPostgis id="l1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="1000" origin="593093 123976 0" lod="10 2000 30000" query_0="SELECT geom FROM bati_extru /**WHERE TILE && geom*/ " query_1="SELECT gid,ST_REVERSE(geom) AS geom FROM bati_tin /**WHERE TILE && geom*/ "
+
+loadVectorPostgis id="b1" conn_info="dbname='paris'" extent="593093 123976,605824 133525" tile_size="200" origin="593093 123976 0" lod="10 1000" query_0="SELECT ST_CENTROID(geom) AS pos , h_et_max*10 AS height, 10 AS width FROM bati /**WHERE TILE && geom*/ "
+
+setSymbology id="l1" fill_color_diffuse="#c0c0c0ff" fill_color_ambient="#c0c0c0ff"
+
+setSymbology id="b1" fill_color_diffuse="#00ff0055" fill_color_ambient="#00ff0055" fill_color_specular="#ffffff33" fill_color_shininess="32."
 
 
-#addPlane id="p0" origin="1845599 5177401  1" extent="1829995 5150995,1869005 5195005"
-#loadElevation id="el0" origin="1845599 5177401 0" mesh_size="50"  extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
-#setSymbology id="el0" fill_color_diffuse="#00ff00aa" fill_color_ambient="#00ff00aa" fill_color_specular="#000000ff" fill_color_shininess="4."
-loadElevation id="el1" origin="1845599 5177401 0" lod="10 5000 20000 200000" tile_size="5000" mesh_size_0="10" mesh_size_1="100" mesh_size_2="500" extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
-#setSymbology id="el1" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000ff" fill_color_specular="#ffffffff" fill_color_shininess="40."
 
-addSky id="sky" image="sky.png" radius="60000"
+##addPlane id="p0" origin="1845599 5177401  1" extent="1829995 5150995,1869005 5195005"
+##loadElevation id="el0" origin="1845599 5177401 0" mesh_size="50"  extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
+##setSymbology id="el0" fill_color_diffuse="#00ff00aa" fill_color_ambient="#00ff00aa" fill_color_specular="#000000ff" fill_color_shininess="4."
+#loadElevation id="el1" origin="1845599 5177401 0" lod="10 5000 20000 200000" tile_size="5000" mesh_size_0="10" mesh_size_1="100" mesh_size_2="500" extent="1829995 5150995,1869005 5195005" file="../test/MNT2009_Altitude_10m_CC46.tif"
+##setSymbology id="el1" fill_color_diffuse="#ff0000ff" fill_color_ambient="#ff0000ff" fill_color_specular="#ffffffff" fill_color_shininess="40."
+
+#addSky id="sky" image="sky.png" radius="60000"
 
 
