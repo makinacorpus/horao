@@ -9,13 +9,7 @@
 #include <osgDB/ReadFile>
 #include <osgText/Text>
 #include <osg/io_utils>
-
-#include <osgPPU/Processor.h>
-#include <osgPPU/UnitCameraAttachmentBypass.h>
-#include <osgPPU/UnitInOut.h>
-#include <osgPPU/UnitOut.h>
-#include <osgPPU/UnitText.h>
-#include <osgPPU/ShaderAttribute.h>
+#include <osg/Texture2D>
 
 #include <cassert>
 #define WINDOW_WIDTH 800
@@ -27,12 +21,14 @@ static const char* vertSource =
 {
     "uniform vec3 lightPosition;\n"
     "varying vec3 normal, eyeVec, lightDir;\n"
+    "varying vec4 vertColor;\n"
     "void main()\n"
     "{\n"
         "vec4 vertexInEye = gl_ModelViewMatrix * gl_Vertex;\n"
         "eyeVec = -vertexInEye.xyz;\n"
         "lightDir = vec3(lightPosition - vertexInEye.xyz);\n"
         "normal = gl_NormalMatrix * gl_Normal;\n"
+        "vertColor = gl_Color;\n"
         "gl_Position = ftransform();\n"
     "}\n"
 };
@@ -60,6 +56,77 @@ static const char* fragSource =
         "gl_FragColor = finalColor;\n"
     "}\n"
 };
+
+/*
+static const char* fragSourceFXAA =
+{
+"    // FXAA shader, GLSL code adapted from:\n"
+"    // http://horde3d.org/wiki/index.php5?title=Shading_Technique_-_FXAA\n"
+"    // Whitepaper describing the technique:\n"
+"    // http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf\n"
+"\n"
+"    precision mediump float;\n"
+"    precision mediump int;\n"
+"\n"
+"    uniform sampler2D textureSampler;\n"
+"\n"
+"    // The inverse of the texture dimensions along X and Y\n"
+"    uniform vec2 texcoordOffset;\n"
+"\n"
+"    varying vec4 vertColor;\n"
+"    varying vec4 vertTexcoord;\n"
+"\n"
+"    void main() {\n"
+"        // The parameters are hardcoded for now, but could be\n"
+"        // made into uniforms to control fromt he program.\n"
+"        float FXAA_SPAN_MAX = 8.0;\n"
+"        float FXAA_REDUCE_MUL = 1.0/8.0;\n"
+"        float FXAA_REDUCE_MIN = (1.0/128.0);\n"
+"\n"
+"        vec3 rgbNW = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(-1.0, -1.0) * texcoordOffset)).xyz;\n"
+"        vec3 rgbNE = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(+1.0, -1.0) * texcoordOffset)).xyz;\n"
+"        vec3 rgbSW = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(-1.0, +1.0) * texcoordOffset)).xyz;\n"
+"        vec3 rgbSE = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(+1.0, +1.0) * texcoordOffset)).xyz;\n"
+"        vec3 rgbM =  vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy).xyz;\n"
+"\n"
+"        vec3 luma = vec3(0.299, 0.587, 0.114);\n"
+"        float lumaNW = dot(rgbNW, luma);\n"
+"        float lumaNE = dot(rgbNE, luma);\n"
+"        float lumaSW = dot(rgbSW, luma);\n"
+"        float lumaSE = dot(rgbSE, luma);\n"
+"        float lumaM = dot( rgbM, luma);\n"
+"\n"
+"        float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));\n"
+"        float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));\n"
+"\n"
+"        vec2 dir;\n"
+"        dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));\n"
+"        dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));\n"
+"\n"
+"        float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);\n"
+"\n"
+"        float rcpDirMin = 1.0/(min(abs(dir.x), abs(dir.y)) + dirReduce);\n"
+"\n"
+"        dir = min(vec2(FXAA_SPAN_MAX, FXAA_SPAN_MAX),\n"
+"        max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX), dir * rcpDirMin)) * texcoordOffset;\n"
+"\n"
+"        //vec3 rgbA = (1.0/2.0) * (\n"
+"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (1.0/3.0 - 0.5)).xyz +\n"
+"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (2.0/3.0 - 0.5)).xyz);\n"
+"        //vec3 rgbB = rgbA * (1.0/2.0) + (1.0/4.0) * (\n"
+"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (0.0/3.0 - 0.5)).xyz +\n"
+"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (3.0/3.0 - 0.5)).xyz);\n"
+"        vec3 rgbA = (1.0/2.0) * vec3(1,1,1);\n"
+"        vec3 rgbB = (1.0/2.0) + (1.0/4.0) * vec3(1,1,1);\n"
+"        float lumaB = dot(rgbB, luma);\n"
+"\n"
+"        gl_FragColor.xyz= ((lumaB < lumaMin) || (lumaB > lumaMax)) ? rgbA : rgbB;\n"
+"        //gl_FragColor.a = 1.0;\n"
+"\n"
+"        gl_FragColor *= vertColor;\n"
+"    }\n"
+};
+*/
 
 class LightPosCallback : public osg::Uniform::Callback
 {
@@ -144,7 +211,7 @@ ViewerWidget::ViewerWidget():
     }
 
     // per pixel lighting
-    if(1)
+    if(0)
     {
         osg::ref_ptr<osg::Program> program = new osg::Program;
         program->addShader( new osg::Shader(osg::Shader::VERTEX, vertSource) );
@@ -155,7 +222,7 @@ ViewerWidget::ViewerWidget():
         stateset->addUniform( new osg::Uniform("lightSpecular", osg::Vec4(1.0f, 1.0f, 0.4f, 1.0f)) );
         stateset->addUniform( new osg::Uniform("shininess", 64.0f) );
 
-        osg::ref_ptr<osg::Uniform> lightPos = new osg::Uniform( "lightPosition", osg::Vec3(1000,2000,3000) );
+        osg::ref_ptr<osg::Uniform> lightPos = new osg::Uniform( "lightPosition", osg::Vec3(10000,20000,30000) );
         stateset->addUniform( lightPos.get() );
     }
 

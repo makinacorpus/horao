@@ -66,6 +66,7 @@ void Interpreter::run()
         COMMAND(loadVectorPostgis)
         COMMAND(loadRasterGDAL)
         COMMAND(loadElevation)
+        COMMAND(loadFile)
         COMMAND(unloadLayer)
         COMMAND(showLayer)
         COMMAND(hideLayer)
@@ -89,6 +90,17 @@ const std::string intToString( int i )
     std::stringstream s;
     s << i;
     return s.str();
+}
+
+bool Interpreter::loadFile( const AttributeMap & am )
+{
+    if ( am.value("id").empty() || am.value("file").empty() ) return false;
+    osg::ref_ptr< osg::Node > node = osgDB::readNodeFile( am.value("file") );
+
+    if (!node.get()) return false;
+
+    return _viewer->addNode( am.value("id"), node.get() );
+
 }
 
 bool Interpreter::addSky( const AttributeMap & am )

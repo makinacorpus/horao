@@ -61,6 +61,7 @@ struct Interpreter: public OpenThreads::Thread
     bool loadVectorPostgis( const AttributeMap & );
     bool loadRasterGDAL( const AttributeMap & );
     bool loadElevation( const AttributeMap & );
+    bool loadFile( const AttributeMap & );
     bool unloadLayer( const AttributeMap & );
     bool showLayer(const AttributeMap & am);
     bool hideLayer(const AttributeMap & am);

@@ -249,7 +249,7 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         }
         DEBUG_OUT << "zMax=" << zMax << "\n";
 
-        hf->setSkirtHeight(10);
+        hf->setSkirtHeight((xmax-xmin)/10);
 
         DEBUG_OUT << "loaded in " << timer.time_s() << "sec\n";
 

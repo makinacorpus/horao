@@ -21,7 +21,7 @@ endif()
 #-----------------------------------------------------------
 
 find_package( OpenSceneGraph COMPONENTS osgQt osgViewer osgGA osgDB osgUtil osgText osgTerrain REQUIRED )
-set (OPENSCENEGRAPH_LIBRARIES ${OPENSCENEGRAPH_LIBRARIES} osgPPU)
+#set (OPENSCENEGRAPH_LIBRARIES ${OPENSCENEGRAPH_LIBRARIES} osgPPU)
 find_package( OpenGL REQUIRED )
 find_package( GDAL REQUIRED )
 #find_package( LibXml2 REQUIRED)
