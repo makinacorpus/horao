@@ -301,6 +301,16 @@ bool ViewerWidget::setVisible( const std::string& nodeId, bool visible ) volatil
     return true;
 }
 
+bool ViewerWidget::setLookAt( const osg::Matrix & lookAt ) volatile
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
+
+
+    that->getCamera()->setProjectionMatrix( lookAt ); 
+
+    return true;
+}
 }
 }
 

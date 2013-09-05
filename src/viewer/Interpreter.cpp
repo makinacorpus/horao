@@ -33,10 +33,25 @@ void Interpreter::run()
         Log::instance().str("");\
     }
     std::string line;
-    while ( std::getline( ifs, line ) || std::getline( std::cin, line ) ) {
-        if ( line.empty() || '#' == line[0] ) continue; // empty line
+    std::string physicalLine;
+    while ( std::getline( ifs, physicalLine ) || std::getline( std::cin, physicalLine ) ) {
+        if ( physicalLine.empty() || '#' == physicalLine[0] ) continue; // empty line
+
+        if ( physicalLine[ physicalLine.length() -1 ] == '\\' ) {
+            std::cout << physicalLine << "\n";
+            line += physicalLine.substr(0, physicalLine.length() - 1) ;
+            continue;
+        }
+        else if (!line.empty()){
+            std::cout << physicalLine << "\n";
+            line += physicalLine.substr(0, physicalLine.length() - 1) ;
+        }
+        else{
+            line = physicalLine;
+        }
 
         std::stringstream ls(line);
+        line = "";
         std::string cmd;
         std::getline( ls, cmd, ' ' );
 
@@ -74,6 +89,7 @@ void Interpreter::run()
         COMMAND(setSymbology)
         COMMAND(setFullExtent)
         COMMAND(addPlane)
+        COMMAND(lookAt)
         COMMAND(addSky)
         else{
             ERROR << "unknown command '" << cmd << "'.";
@@ -91,6 +107,12 @@ const std::string intToString( int i )
     std::stringstream s;
     s << i;
     return s.str();
+}
+
+bool Interpreter::lookAt( const AttributeMap & )
+{
+    osg::Matrix m = osg::Matrix::lookAt(osg::Vec3(0, 200, 0), osg::Vec3(200, 200, 0), osg::Vec3(0, 0, 1));
+    return _viewer->setLookAt( m );
 }
 
 bool Interpreter::loadFile( const AttributeMap & am )
