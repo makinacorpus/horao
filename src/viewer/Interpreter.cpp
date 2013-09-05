@@ -29,7 +29,7 @@ void Interpreter::run()
     std::ifstream ifs( _inputFile.c_str() );
     if ( !_inputFile.empty() && !ifs ){
         ERROR << "cannot open '" << _inputFile << "'";
-        std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n";\
+        std::cout << "<error msg=\""<< escapeXMLString(Log::instance().str()) << "\"/>\n"; \
         Log::instance().str("");\
     }
     std::string line;
@@ -57,7 +57,7 @@ void Interpreter::run()
         else if ( #CMD == cmd  ){                                       \
             if ( !CMD( am ) ){                                          \
                 ERROR << "cannot " << #CMD;                             \
-                std::cout << "<error msg=\""<< Log::instance().str() << "\"/>\n"; \
+                std::cout << "<error msg=\""<< escapeXMLString(Log::instance().str()) << "\"/>\n"; \
             }                                                           \
             else {                                                      \
                 std::cout << "<ok/>\n";                                 \
@@ -77,7 +77,7 @@ void Interpreter::run()
         COMMAND(addSky)
         else{
             ERROR << "unknown command '" << cmd << "'.";
-            std::cout << "<error msg=\"" << Log::instance().str() << "\"/>\n";
+            std::cout << "<error msg=\"" << escapeXMLString(Log::instance().str()) << "\"/>\n";
             Log::instance().str("");
         }
 #undef COMMAND
@@ -121,7 +121,7 @@ bool Interpreter::addSky( const AttributeMap & am )
 
     double radius;
     if (!(std::stringstream( am.value("radius") ) >> radius ) ){
-        ERROR << "cannot parse radius=\"" << am.value("radius") << "\"\n";
+        ERROR << "cannot parse radius=\"" << am.value("radius") << "\"";
         return false;
     }
 
@@ -135,7 +135,7 @@ bool Interpreter::addSky( const AttributeMap & am )
     osg::Image* posZ = osgDB::readImageFile( "posZ_"+am.value("image"));
     osg::Image* negZ = osgDB::readImageFile( "negZ_"+am.value("image"));
     if ( !( posX && negX && posY && negY && posZ && negZ ) ){
-        ERROR << "cannot find image=\"" << am.value("image") << "\"\n";
+        ERROR << "cannot find image=\"" << am.value("image") << "\"";
         return false;
     }
     
@@ -282,14 +282,14 @@ bool Interpreter::loadElevation(const AttributeMap & am)
     // test if an terain db exist (.ive)
     std::string ive(am.value("file"));
     if ( ive.length() <= 4){
-        ERROR << "file=\""<< ive << "\" filename is too short (missing exetension ?)\n";
+        ERROR << "file=\""<< ive << "\" filename is too short (missing exetension ?)";
         return false;
     }
     ive.replace( ive.length() - 4, std::string::npos, ".ive" );
     AttributeMap amIve( am );
     amIve["file"] = ive;
     if ( loadFile(amIve) ) return true;
-    else std::cout << "did not find \"" << ive << "\"\n";
+    else ERROR << "did not find \"" << ive << "\"";
 
     // with LOD
     if ( ! am.optionalValue("lod").empty() ){
