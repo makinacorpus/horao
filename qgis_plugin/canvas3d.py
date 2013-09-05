@@ -32,8 +32,17 @@ import os.path
 import sys
 import subprocess
 
+# constants. TODO : allow user to set them up
+
 SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
 OSGDEM_BIN = "/home/hme/src/VirtualPlanetBuilder/build/bin/osgdem"
+
+# distance, in meters, between each vector layer
+Z_VECTOR_FIGHT_GAP = 2
+# distance, in meters on top of DEM layer
+Z_DEM_FIGHT_GAP = 5
+# tile size
+TILE_SIZE = 1000
 
 class LayerInfo:
     def __init__( self ):
@@ -152,7 +161,7 @@ class Canvas3D:
 
                 center = self.fullExtent.center()
                 args['extent'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
-                args['origin'] = "%f %f %f" % (center.x(), center.y(), z)
+                args['origin'] = "%f %f %f" % (center.x(), center.y(), z * Z_VECTOR_FIGHT_GAP)
                 
                 if table[0:2] == '"(':
                     # table == query (DB manager)
@@ -172,7 +181,7 @@ class Canvas3D:
                 # TODO : conversion from 1:N scale to distance to ground
                 args['lod'] = "%f %f" % (layer.minimumScale(), layer.maximumScale() )
                 args['query_0'] = query
-                args['tile_size'] = 1000 # TODO: how to set it ?
+                args['tile_size'] = TILE_SIZE
                 #args['query'] = query
                     
                 self.sendToViewer( 'loadVectorPostgis', args )
@@ -184,14 +193,14 @@ class Canvas3D:
         elif layer.type() == 1:
             provider = layer.dataProvider()
 
-            style['fill_color_diffuse'] = '#00ff00ff'
+            style['fill_color_diffuse'] = '#77ff77ff'
 
             if provider.name() == 'gdal':
                 # warning: band # start at 1
                 extent = self.fullExtent
                 extent = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
                 center = self.fullExtent.center()
-                origin = "%f %f %f" % ( center.x(), center.y(), z )
+                origin = "%f %f %f" % ( center.x(), center.y(), (z-1) * Z_VECTOR_FIGHT_GAP + Z_DEM_FIGHT_GAP )
 
                 fileSrc = layer.source()
                 fileName, fileExt = os.path.splitext( fileSrc )
@@ -212,7 +221,7 @@ class Canvas3D:
                                                           'origin' : origin,
                                                           'mesh_size_0' : '10',
                                                           'lod' : '0 10000000',
-                                                          'tile_size' : '2000'} )
+                                                          'tile_size' : TILE_SIZE} )
                 else:
                     pass
                     # not supported yet self.sendToViewer( 'loadImageGDAL', { 'id': layer.id(), 'url':layer.source()} )
@@ -299,6 +308,15 @@ class Canvas3D:
         self.vpipe.start( SIMPLEVIEWER_BIN )
 
         self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
+
+        # set camera
+        vExtent = self.iface.mapCanvas().extent()
+        center = self.fullExtent.center()
+        self.sendToViewer( 'lookAt', { 'origin' : "%f %f 0" % (center.x(), center.y()),
+                                       'extent' : "%f %f,%f %f" % (vExtent.xMinimum(),
+                                                                   vExtent.yMinimum(),
+                                                                   vExtent.xMaximum(),
+                                                                   vExtent.yMaximum() ) } )
 
         # load every visible layer
         layers = registry.mapLayers()

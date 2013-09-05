@@ -4,10 +4,10 @@
     <mapcanvas>
         <units>meters</units>
         <extent>
-            <xmin>1815367.9686206909827888</xmin>
-            <ymin>5168378.95000000018626451</ymin>
-            <xmax>1883632.0313793090172112</xmax>
-            <ymax>5177621.04999999981373549</ymax>
+            <xmin>1844408.4862485071644187</xmin>
+            <ymin>5171382.34666784480214119</ymin>
+            <xmax>1847242.17375140218064189</xmax>
+            <ymax>5172864.01333602517843246</ymax>
         </extent>
         <projections>0</projections>
         <destinationsrs>
@@ -23,7 +23,7 @@
             </spatialrefsys>
         </destinationsrs>
     </mapcanvas>
-    <legend updateDrawingOrder="true" activeLayer="lod220130905114824448">
+    <legend updateDrawingOrder="true" activeLayer="MNT2009_Altitude_10m_CC4620130905150209680">
         <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="lod2" showFeatureCount="0">
             <filegroup open="true" hidden="false">
                 <legendlayerfile isInOverview="0" layerid="lod220130905114824448" visible="1"/>
@@ -44,13 +44,53 @@
                 <legendlayerfile isInOverview="0" layerid="lands20130905103945803" visible="1"/>
             </filegroup>
         </legendlayer>
-        <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="mnt_lyon" showFeatureCount="0">
+        <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="MNT2009_Altitude_10m_CC46" showFeatureCount="0">
             <filegroup open="true" hidden="false">
-                <legendlayerfile isInOverview="0" layerid="mnt_lyon20130905115440017" visible="1"/>
+                <legendlayerfile isInOverview="0" layerid="MNT2009_Altitude_10m_CC4620130905150209680" visible="1"/>
             </filegroup>
         </legendlayer>
     </legend>
     <projectlayers layercount="5">
+        <maplayer minimumScale="-4.65661e-10" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
+            <id>MNT2009_Altitude_10m_CC4620130905150209680</id>
+            <datasource>./MNT2009_Altitude_10m_CC46.tif</datasource>
+            <title></title>
+            <abstract></abstract>
+            <keywordList>
+                <value></value>
+            </keywordList>
+            <layername>MNT2009_Altitude_10m_CC46</layername>
+            <srs>
+                <spatialrefsys>
+                    <proj4>+proj=lcc +lat_1=45.25 +lat_2=46.75 +lat_0=46 +lon_0=3 +x_0=1700000 +y_0=5200000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
+                    <srsid>1765</srsid>
+                    <srid>3946</srid>
+                    <authid>EPSG:3946</authid>
+                    <description>RGF93 / CC46</description>
+                    <projectionacronym>lcc</projectionacronym>
+                    <ellipsoidacronym>GRS80</ellipsoidacronym>
+                    <geographicflag>false</geographicflag>
+                </spatialrefsys>
+            </srs>
+            <customproperties>
+                <property key="identify/format" value="Value"/>
+            </customproperties>
+            <provider>gdal</provider>
+            <pipe>
+                <rasterrenderer gradient="BlackToWhite" opacity="1" alphaBand="0" type="singlebandgray" grayBand="1">
+                    <rasterTransparency/>
+                    <contrastEnhancement>
+                        <minValue>160.112</minValue>
+                        <maxValue>374.944</maxValue>
+                        <algorithm>StretchToMinimumMaximum</algorithm>
+                    </contrastEnhancement>
+                </rasterrenderer>
+                <brightnesscontrast brightness="0" contrast="0"/>
+                <huesaturation colorizeGreen="255" colorizeOn="1" colorizeRed="214" colorizeBlue="125" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
+                <rasterresampler maxOversampling="2"/>
+            </pipe>
+            <blendMode>0</blendMode>
+        </maplayer>
         <maplayer minimumScale="-4.65661e-10" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="0" scaleBasedLabelVisibilityFlag="0">
             <id>lands20130905103945803</id>
             <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."lands" (geom) sql=</datasource>
@@ -644,46 +684,6 @@
             <excludeAttributesWMS/>
             <excludeAttributesWFS/>
             <attributeactions/>
-        </maplayer>
-        <maplayer minimumScale="0" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
-            <id>mnt_lyon20130905115440017</id>
-            <datasource>./mnt_lyon.tif</datasource>
-            <title></title>
-            <abstract></abstract>
-            <keywordList>
-                <value></value>
-            </keywordList>
-            <layername>mnt_lyon</layername>
-            <srs>
-                <spatialrefsys>
-                    <proj4>+proj=lcc +lat_1=45.25 +lat_2=46.75 +lat_0=46 +lon_0=3 +x_0=1700000 +y_0=5200000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
-                    <srsid>1765</srsid>
-                    <srid>3946</srid>
-                    <authid>EPSG:3946</authid>
-                    <description>RGF93 / CC46</description>
-                    <projectionacronym>lcc</projectionacronym>
-                    <ellipsoidacronym>GRS80</ellipsoidacronym>
-                    <geographicflag>false</geographicflag>
-                </spatialrefsys>
-            </srs>
-            <customproperties>
-                <property key="identify/format" value="Value"/>
-            </customproperties>
-            <provider>gdal</provider>
-            <pipe>
-                <rasterrenderer gradient="BlackToWhite" opacity="1" alphaBand="-1" type="singlebandgray" grayBand="1">
-                    <rasterTransparency/>
-                    <contrastEnhancement>
-                        <minValue>168.002</minValue>
-                        <maxValue>218.924</maxValue>
-                        <algorithm>StretchToMinimumMaximum</algorithm>
-                    </contrastEnhancement>
-                </rasterrenderer>
-                <brightnesscontrast brightness="0" contrast="0"/>
-                <huesaturation colorizeGreen="255" colorizeOn="1" colorizeRed="210" colorizeBlue="175" grayscaleMode="0" saturation="0" colorizeStrength="100"/>
-                <rasterresampler maxOversampling="2"/>
-            </pipe>
-            <blendMode>0</blendMode>
         </maplayer>
         <maplayer minimumScale="-4.65661e-10" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="0" scaleBasedLabelVisibilityFlag="0">
             <id>plandeau20130905100338732</id>
