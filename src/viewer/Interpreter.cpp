@@ -33,10 +33,23 @@ void Interpreter::run()
         Log::instance().str("");\
     }
     std::string line;
-    while ( std::getline( ifs, line ) || std::getline( std::cin, line ) ) {
-        if ( line.empty() || '#' == line[0] ) continue; // empty line
+    std::string physicalLine;
+    while ( std::getline( ifs, physicalLine ) || std::getline( std::cin, physicalLine ) ) {
+        if ( physicalLine.empty() || '#' == physicalLine[0] ) continue; // empty line
+
+        if ( physicalLine[ physicalLine.length() -1 ] == '\\' ) {
+            line += physicalLine.substr(0, physicalLine.length() - 1) ;
+            continue;
+        }
+        else if (!line.empty()){
+            line += physicalLine.substr(0, physicalLine.length() - 1) ;
+        }
+        else{
+            line = physicalLine;
+        }
 
         std::stringstream ls(line);
+        line = "";
         std::string cmd;
         std::getline( ls, cmd, ' ' );
 
@@ -74,6 +87,7 @@ void Interpreter::run()
         COMMAND(setSymbology)
         COMMAND(setFullExtent)
         COMMAND(addPlane)
+        COMMAND(lookAt)
         COMMAND(addSky)
         else{
             ERROR << "unknown command '" << cmd << "'.";
@@ -91,6 +105,44 @@ const std::string intToString( int i )
     std::stringstream s;
     s << i;
     return s.str();
+}
+
+bool Interpreter::lookAt( const AttributeMap & am )
+{
+    if ( ( am.optionalValue("extent").empty() || am.optionalValue("origin").empty() )  && ((am.optionalValue("eye").empty() || am.optionalValue("center").empty() || am.optionalValue("up").empty()) ) ) return false;
+
+    if ( am.optionalValue("extent").empty() ){
+        osg::Vec3d eye, center, up;
+        if ( !( std::stringstream( am.value("eye") ) >> eye.x() >> eye.y() >> eye.z() ) 
+           ||!( std::stringstream( am.value("center") ) >> center.x() >> center.y() >> center.z() )
+           ||!( std::stringstream( am.value("up") ) >> up.x() >> up.y() >> up.z() )){
+            ERROR << "cannot parse eye, center or up";
+            return false;
+        }
+
+        return _viewer->setLookAt( eye, center, up );
+    }
+    else {
+        osg::Vec3d origin;
+        if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
+            ERROR << "cannot parse origin";
+            return false;
+        }
+
+        float xmin, ymin, xmax, ymax;
+        std::stringstream ext( am.value("extent") );
+        std::string l;
+        if ( !(ext >> xmin >> ymin)
+            || !std::getline(ext, l, ',')
+            || !(ext >> xmax >> ymax) ) {
+            ERROR << "cannot parse extent";
+            return false;
+        }
+        return _viewer->lookAtExtent( xmin - origin.x(), 
+                                      ymin - origin.y(), 
+                                      xmax - origin.x(), 
+                                      ymax - origin.y());
+    }
 }
 
 bool Interpreter::loadFile( const AttributeMap & am )

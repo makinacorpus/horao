@@ -174,7 +174,7 @@ ViewerWidget::ViewerWidget():
 
         camera->setClearColor( osg::Vec4( 204.0/255, 204.0/255, 204.0/255, 1 ) );
         //camera->setViewport( new osg::Viewport( 0, 0, traits->width, traits->height ) );
-        //camera->setProjectionMatrixAsPerspective( 30.0f, double( traits->width )/double( traits->height ), 1.0f, 10000.0f );
+        //camera->setProjectionMatrixAsPerspective( 30.0f, double( traits->width )/double( traits->height ), 1.0f, 100000.0f );
         //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
         //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
 
@@ -196,7 +196,7 @@ ViewerWidget::ViewerWidget():
         
         addEventHandler(new osgViewer::WindowSizeHandler);
         addEventHandler(new osgViewer::StatsHandler);
-        addEventHandler( new osgGA::StateSetManipulator( getCamera()->getOrCreateStateSet()) );
+        addEventHandler(new osgGA::StateSetManipulator( getCamera()->getOrCreateStateSet()) );
         addEventHandler(new osgViewer::ScreenCaptureHandler);
 
         setFrameStamp( new osg::FrameStamp );
@@ -298,6 +298,37 @@ bool ViewerWidget::setVisible( const std::string& nodeId, bool visible ) volatil
         return false;
     }
     found->second->setNodeMask(visible ? 0xffffffff : 0x0);
+    return true;
+}
+
+bool ViewerWidget::setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
+    that->getCameraManipulator()->setHomePosition(eye, center, up); 
+    that->getCameraManipulator()->home(0); 
+    return true;
+}
+
+
+bool ViewerWidget::lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
+    double fovy, aspectRatio, zNear, zFar;
+    if (!that->getCamera()->getProjectionMatrixAsPerspective(fovy, aspectRatio, zNear, zFar) )
+        return false;
+
+    // compute distance from fovy
+    const double fovRad = fovy * M_PI / 180;
+    const double altitude = .5*(ymax-ymin) / std::tan( .5*fovRad );
+
+    const osg::Vec3 up(0,1,0);
+    const osg::Vec3 center(xmin+.5*(xmax-xmin), ymin+.5*(ymax-ymin), 0 );
+    const osg::Vec3 eye(center.x(), center.y(), altitude);
+
+    that->getCameraManipulator()->setHomePosition(eye, center, up); 
+    that->getCameraManipulator()->home(0); 
     return true;
 }
 

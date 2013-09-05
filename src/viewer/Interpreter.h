@@ -69,6 +69,7 @@ struct Interpreter: public OpenThreads::Thread
     bool setFullExtent( const AttributeMap & );
     bool addPlane( const AttributeMap & );
     bool addSky( const AttributeMap & );
+    bool lookAt( const AttributeMap & );
 
 private:
 

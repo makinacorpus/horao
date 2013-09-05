@@ -17,6 +17,8 @@ struct ViewerWidget: osgViewer::Viewer
     bool setVisible( const std::string& nodeId, bool visible) volatile;
     void setDone( bool flag ) volatile;
     bool setStateSet( const std::string& nodeId, osg::StateSet * ) volatile;
+    bool setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile;
+    bool lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile;
 
 
 private:
