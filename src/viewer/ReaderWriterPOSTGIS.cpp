@@ -14,12 +14,33 @@
 #include <algorithm>
 #include <map>
 
+#include <gdal/gdal_priv.h>
+#include <gdal/cpl_conv.h>
 
 #define DEBUG_OUT if (0) std::cerr
+
+// for GDAL RAII
+struct Dataset
+{
+    Dataset( const std::string & file )
+       : _raster( (GDALDataset *) GDALOpen( file.c_str(), GA_ReadOnly ) )
+    {}
+
+    GDALDataset * operator->(){ return _raster; }
+    operator bool(){ return _raster;}
+
+    ~Dataset()
+    {
+        if (_raster) GDALClose( _raster );
+    }
+private:
+    GDALDataset * _raster;
+};
 
 // for RAII of connection
 struct PostgisConnection
 {
+
     PostgisConnection( const std::string & connInfo )
         : _conn( PQconnectdb(connInfo.c_str()) )
     {}
@@ -62,11 +83,17 @@ private:
    PGconn * _conn;
 };
 
+void MyErrorHandler(CPLErr , int /*err_no*/, const char *msg)
+{
+    ERROR << "from GDAL:" << msg << "\n";
+}
 
 struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 {
     ReaderWriterPOSTGIS()
     {
+        GDALAllRegister();
+        CPLSetErrorHandler( MyErrorHandler );	
         supportsExtension( "postgis", "PostGIS feature loader" );
         supportsExtension( "postgisd", "PostGIS feature loader" );
     }
@@ -133,8 +160,8 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
         // define transfo  layerToWord
         osg::Matrixd layerToWord;
+        osg::Vec3d origin;
         {
-            osg::Vec3d origin;
             if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
                 std::cerr << "failed to obtain origin=\""<< am["origin"] <<"\"\n";
                 return ReadResult::ERROR_IN_READING_FILE;
@@ -164,7 +191,6 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
                 assert( lwgeom.get() );
                 mesh.push_back( lwgeom.get() );
             }
-            group->addDrawable(mesh.createGeometry());
         }
         else if ( posIdx >= 0 && heightIdx >= 0 && widthIdx >=0 ){ // we draw bars instead of geom
             for( int i=0; i<numFeatures; i++ ) {
@@ -183,7 +209,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
                 mesh.addBar( osg::Vec3(p.x, p.y, p.z + h/2), w, w, h);
             }
-            group->addDrawable(mesh.createGeometry());
+
 /*
             osg::Node * cube = osgDB::readNodeFile("cube.obj");
             assert(cube->asGroup());
@@ -211,6 +237,47 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             std::cerr << "cannot find either 'geom' column or 'height','width' columns\n"; 
             return ReadResult::ERROR_IN_READING_FILE;
         }
+
+        if (!am["elevation"].empty()) {
+            Dataset raster( am["elevation"].c_str() );
+            double transform[6];
+            raster->GetGeoTransform( transform );
+            
+            // assume square pixels
+            assert( std::abs(transform[4]) < FLT_EPSILON );
+            assert( std::abs(transform[2]) < FLT_EPSILON );
+
+            const double originX = transform[0];
+            const double originY = transform[3];
+            
+            const double pixelPerMetreX =  1.f/transform[1];
+            const double pixelPerMetreY = -1.f/transform[5]; // image is top->bottom
+            GDALRasterBand * band = raster->GetRasterBand( 1 );
+            GDALDataType dType = band->GetRasterDataType();
+            const int dSizeBits = GDALGetDataTypeSize( dType );
+            std::vector<char> buffer( dSizeBits / 8  );
+            char* blockData = &buffer[0];
+
+            double dataOffset;
+            int ok;
+            dataOffset = band->GetOffset( &ok );
+            if ( ! ok ) {
+                dataOffset = 0.0;
+            }
+            const double dataScale = band->GetScale( &ok );
+            assert(ok);
+            for ( std::vector<osg::Vec3>::iterator v = mesh.begin(); v!=mesh.end(); v++){
+               band->RasterIO( GF_Read, int( ( v->x() + origin.x() - originX )*pixelPerMetreX), 
+                                        int( ( originY - v->y() - origin.y() )*pixelPerMetreY), 
+                                        1, 1, blockData, 1, 1, dType, 0, 0 ); 
+               v->z() = float( (SRCVAL(blockData, dType, 0) * dataScale)  + dataOffset ) - origin.z();
+            }
+
+            
+        }
+
+
+        group->addDrawable(mesh.createGeometry());
 
 
 

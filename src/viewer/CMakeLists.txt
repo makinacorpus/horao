@@ -25,6 +25,7 @@ target_link_libraries( osgdb_postgis
     ${LWGEOM_LIBRARY}
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
+    ${GDAL_LIBRARY}
 )
 set_target_properties(osgdb_postgis PROPERTIES PREFIX "")
 

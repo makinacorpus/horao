@@ -290,7 +290,9 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     const std::string pseudoFile = "conn_info=\"" + escapeXMLString(am.value("conn_info"))       + "\" "
                         + "origin=\""    + escapeXMLString(am.value("origin"))          + "\" "
                         + "geocolumn=\"" + geocolumn + "\" "
-                        + "query=\""     + escapeXMLString(query) + "\"" + POSTGIS_EXTENSION;
+                        + "query=\""     + escapeXMLString(query) + "\""
+                        + (am.optionalValue("elevation").empty() ? "" : "elevation=\"" +  escapeXMLString(am.optionalValue("elevation")) + "\"" )
+                        + POSTGIS_EXTENSION;
 
                     pagedLod->setFileName( ilod,  pseudoFile );
                     pagedLod->setRange( ilod, lodDistance[ilod+1], lodDistance[ilod] );
@@ -310,7 +312,9 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
       const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
           + "origin=\""          + escapeXMLString(am.value("origin"))          + "\" "
           + "geocolumn=\"" + escapeXMLString(geocolumn) + "\" "
-          + "query=\""           + escapeXMLString(am.value("query"))           + "\"" + POSTGIS_EXTENSION;
+          + "query=\""           + escapeXMLString(am.value("query"))           + "\"" 
+          + (am.optionalValue("elevation").empty() ? "" : "elevation=\"" +  escapeXMLString(am.optionalValue("elevation")) + "\"" )
+          + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
             ERROR << "cannot create layer";

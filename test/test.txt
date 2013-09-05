@@ -37,10 +37,11 @@ loadVectorPostgis \
     id="land" \
     conn_info="dbname='lyon'" \
     extent="1829995 5150995,1869005 5195005" \
-    origin="1845599 5177401 0" \
+    origin="1845599 5177401 -2" \
     lod="100000 10" \
     tile_size="2500" \
-    query_0="SELECT geom AS geom FROM lands /**WHERE TILE && geom*/ " 
+    query_0="SELECT geom AS geom FROM lands /**WHERE TILE && geom*/ " \
+    elevation="../test/MNT2009_Altitude_10m_CC46.tif"
 setSymbology \
     id="land" \
     fill_color_diffuse="#00ff00ff" \
@@ -52,8 +53,9 @@ loadVectorPostgis \
     id="eau" \
     conn_info="dbname='lyon'" \
     extent="1829995 5150995,1869005 5195005" \
-    origin="1845599 5177401 -5" \
-    query="SELECT geom AS geom FROM plandeau /**WHERE TILE && geom*/ " 
+    origin="1845599 5177401 0" \
+    query="SELECT geom AS geom FROM plandeau /**WHERE TILE && geom*/ " \
+    elevation="../test/MNT2009_Altitude_10m_CC46.tif"
 setSymbology \
     id="eau" \
     fill_color_diffuse="#0000ffff" \
@@ -73,13 +75,13 @@ loadVectorPostgis \
 
 loadElevation \
     id="terrain" \
-    origin="1845599 5177401 1" \
+    origin="1845599 5177401 2" \
     extent="1829995 5150995,1869005 5195005" \
     mesh_size="50" \
     file="../test/MNT2009_Altitude_10m_CC46.tif"
 setSymbology \
     id="terrain" \
-    fill_color_diffuse="#90aa905f" \
-    fill_color_ambient="#90aa905f" \
-    fill_color_specular="#5555555f" \
+    fill_color_diffuse="#90aa90ff" \
+    fill_color_ambient="#90aa90ff" \
+    fill_color_specular="#555555ff" \
     fill_color_shininess="5."

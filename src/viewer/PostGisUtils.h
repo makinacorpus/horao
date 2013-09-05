@@ -81,6 +81,8 @@ struct TriangleMesh
     
     osg::Geometry * createGeometry() const;
 
+    std::vector<osg::Vec3>::iterator begin(){return _vtx.begin();}
+    std::vector<osg::Vec3>::iterator end(){return _vtx.end();}
 
 private:
     std::vector<osg::Vec3> _vtx;
