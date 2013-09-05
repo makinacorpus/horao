@@ -61,6 +61,7 @@ class ViewerPipe:
 
         self.process.stdin.write( toSend + "\n" )
         ret = self.process.stdout.readline()
+        sys.stderr.write('ret: ' + ret )
         try:
             root = ET.fromstring( ret )
             ret = [ root.tag, root.attrib ]

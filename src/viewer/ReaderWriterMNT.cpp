@@ -20,7 +20,7 @@
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 
-#define DEBUG_OUT if (1) std::cout
+#define DEBUG_OUT if (1) std::cerr
 #define ERROR (std::cerr << "error: ")
 
 void MyErrorHandler(CPLErr , int /*err_no*/, const char *msg)

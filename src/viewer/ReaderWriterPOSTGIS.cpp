@@ -144,7 +144,12 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
         osg::ref_ptr<osg::Geode> group = new osg::Geode();
 
-        const int geomIdx   = PQfnumber(res.get(),  "geom" );
+        std::string geocolumn( "geom" );
+        if ( am.find("geocolumn") != am.end() ) {
+            geocolumn = am["geocolumn"];
+        }
+
+        const int geomIdx   = PQfnumber(res.get(),  geocolumn.c_str() );
 
         const int posIdx    = PQfnumber(res.get(),  "pos" );
         const int heightIdx = PQfnumber(res.get(),  "height" );
