@@ -104,14 +104,13 @@ class Canvas3D:
             elif symL.type() == 1: # line
                 style['stroke_color'] = symL.color().name()
             elif symL.type() == 2: # polygon
-                style['fill_color'] = symL.color().name()
-                style['stroke_color'] = symL.borderColor().name()
+                style['fill_color_diffuse'] = symL.color().name()
+#                style['stroke_color'] = symL.borderColor().name()
 #                style['stroke-width'] = str(symL.borderWidth() / self.iface.mapCanvas().mapUnitsPerPixel() * 1000) + "px"
 #                style['stroke-linecap'] = 'square'
 
             if providerName == 'postgres':
                 # parse connection string
-#                sys.stderr.write(layer.source())
                 connection = {}
                 geocolumn = 'geom'
                 args = {}
@@ -138,15 +137,13 @@ class Canvas3D:
                 (geocolumn,query) = q.split('sql=')
                 geocolumn=geocolumn.strip('() ')
 
-#                sys.stderr.write( "table:%s\ngeocolumn:%s\nquery:%s\n" % (table, geocolumn, query) )
-
                 args['id'] = layer.id()
                 args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
-                renderer = self.iface.mapCanvas().mapRenderer()
-                extent = renderer.fullExtent()
-                center = extent.center()
-                args['extend'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
-                args['center'] = "%f %f" % (center.x(), center.y())
+                extent = layer.extent()
+
+                center = self.fullExtent.center()
+                args['extent'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
+                args['origin'] = "%f %f 0" % (center.x(), center.y())
                 
                 if table[0:2] == '"(':
                     # table == query (DB manager)
@@ -156,12 +153,18 @@ class Canvas3D:
 
 
                 if layer.hasScaleBasedVisibility():
-                    # TODO : conversion from 1:N scale to distance to ground
-                    args['lod'] = "%f %f" % (layer.minimumScale(), layer.maximumScale() )
-                    args['query_0'] = query
-                    args['tile_size'] = 2000 # TODO: how to set it ?
+                    lmin = layer.minimumScale()
+                    lmax = layer.maximumScale()
                 else:
-                    args['query'] = query
+                    # by default, we enable on demand loading
+                    lmin = 0
+                    lmax = 10000000
+
+                # TODO : conversion from 1:N scale to distance to ground
+                args['lod'] = "%f %f" % (layer.minimumScale(), layer.maximumScale() )
+                args['query_0'] = query
+                args['tile_size'] = 2000 # TODO: how to set it ?
+                #args['query'] = query
                     
                 self.sendToViewer( 'loadVectorPostgis', args )
                 self.layers[ layer ] = LayerInfo( layer.id(), False )
@@ -169,7 +172,7 @@ class Canvas3D:
                 # send symbology
                     
                 style['id'] = layer.id()
-                #self.sendToViewer( 'setSymbology', style )
+                self.sendToViewer( 'setSymbology', style )
 
         #
         # raster layers
@@ -194,7 +197,10 @@ class Canvas3D:
             del self.layers[ layer ]
 
     def setExtent( self, epsg, xmin, ymin, xmax, ymax ):
-        self.sendToViewer( 'setFullExtent', {'x_min': xmin, 'y_min': ymin, 'x_max' : xmax, 'y_max': ymax } )
+        center = self.fullExtent.center()
+        self.sendToViewer( 'addPlane', { 'id' : 'p0',
+                                         'extent' : "%f %f,%f %f" % (xmin, ymin, xmax, ymax),
+                                         'origin' : "%f %f 1" % (center.x(), center.y()) } )
 
     def setLayerVisibility( self, layer, visibility ):
         if not self.layers.has_key( layer ):
@@ -242,9 +248,11 @@ class Canvas3D:
             QObject.connect( self.iface.mapCanvas(), SIGNAL( "layersChanged()" ), self.onLayersChanged )
             self.signalsConnected = True
 
-        # set extent
+        # get the current global extent
         renderer = self.iface.mapCanvas().mapRenderer()
-        extent = renderer.fullExtent()
+        # store it (will be used as origin)
+        self.fullExtent = renderer.fullExtent()
+        extent = self.fullExtent
         epsg = renderer.destinationCrs().authid()
 
         if extent.isEmpty():
@@ -253,7 +261,7 @@ class Canvas3D:
 
         self.vpipe.start( SIMPLEVIEWER_BIN )
 
-#        self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
+        self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
 
         # load every visible layer
         layers = registry.mapLayers()
