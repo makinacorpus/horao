@@ -233,6 +233,10 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
       || am.value("origin").empty()
       ) return false;
 
+    std::string geocolumn = "geom";
+    if ( ! am.optionalValue("geocolumn").empty() ) {
+        geocolumn = am.optionalValue("geocolumn");
+    }
     // with LOD
     if ( ! am.optionalValue("lod").empty() ){
         std::vector<  double > lodDistance;
@@ -245,7 +249,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
            if (idx < 0) continue;
            const std::string lodIdx = intToString( idx );
            if ( am.value("query_"+lodIdx ).empty() 
-                   || !isQueryValid( am.value("query_"+lodIdx ) ) ) return false;
+                || !isQueryValid( am.value("query_"+lodIdx ), geocolumn ) ) return false;
         }
         
         float xmin, ymin, xmax, ymax;
@@ -285,6 +289,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     if (query.empty()) return false;
                     const std::string pseudoFile = "conn_info=\"" + escapeXMLString(am.value("conn_info"))       + "\" "
                         + "origin=\""    + escapeXMLString(am.value("origin"))          + "\" "
+                        + "geocolumn=\"" + escapeXMLString(am.value("geocolumn")) + "\" "
                         + "query=\""     + escapeXMLString(query) + "\"" + POSTGIS_EXTENSION;
 
                     pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
@@ -301,9 +306,10 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
     }
     // without LOD
     else{
-      if ( am.value("query").empty() || !isQueryValid( am.value("query") ) ) return false;
+        if ( am.value("query").empty() || !isQueryValid( am.value("query"), geocolumn ) ) return false;
       const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
           + "origin=\""          + escapeXMLString(am.value("origin"))          + "\" "
+          + "geocolumn=\"" + escapeXMLString(am.value("geocolumn")) + "\" "
           + "query=\""           + escapeXMLString(am.value("query"))           + "\"" + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){

@@ -153,7 +153,8 @@ class Canvas3D:
                 else:
                     table=table+'"'
                 (geocolumn,query) = q.split('sql=')
-                geocolumn=geocolumn.strip('() ')
+                geocolumn = geocolumn.strip('() ')
+                args['geocolumn'] = geocolumn
 
                 args['id'] = layer.id()
                 args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
@@ -167,7 +168,7 @@ class Canvas3D:
                     # table == query (DB manager)
                     query = table.strip('"()')
                 else:
-                    query = "SELECT * FROM %s /**WHERE TILE && geom*/" % table
+                    query = "SELECT * FROM %s /**WHERE TILE && %s*/" % (table, geocolumn)
 
 
                 if layer.hasScaleBasedVisibility():
