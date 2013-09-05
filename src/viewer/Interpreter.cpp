@@ -289,7 +289,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                     if (query.empty()) return false;
                     const std::string pseudoFile = "conn_info=\"" + escapeXMLString(am.value("conn_info"))       + "\" "
                         + "origin=\""    + escapeXMLString(am.value("origin"))          + "\" "
-                        + "geocolumn=\"" + escapeXMLString(am.value("geocolumn")) + "\" "
+                        + "geocolumn=\"" + geocolumn + "\" "
                         + "query=\""     + escapeXMLString(query) + "\"" + POSTGIS_EXTENSION;
 
                     pagedLod->setFileName( ilod,  pseudoFile );
@@ -309,7 +309,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
         if ( am.value("query").empty() || !isQueryValid( am.value("query"), geocolumn ) ) return false;
       const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
           + "origin=\""          + escapeXMLString(am.value("origin"))          + "\" "
-          + "geocolumn=\"" + escapeXMLString(am.value("geocolumn")) + "\" "
+          + "geocolumn=\"" + escapeXMLString(geocolumn) + "\" "
           + "query=\""           + escapeXMLString(am.value("query"))           + "\"" + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
