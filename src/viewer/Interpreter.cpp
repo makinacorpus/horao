@@ -38,12 +38,10 @@ void Interpreter::run()
         if ( physicalLine.empty() || '#' == physicalLine[0] ) continue; // empty line
 
         if ( physicalLine[ physicalLine.length() -1 ] == '\\' ) {
-            std::cout << physicalLine << "\n";
             line += physicalLine.substr(0, physicalLine.length() - 1) ;
             continue;
         }
         else if (!line.empty()){
-            std::cout << physicalLine << "\n";
             line += physicalLine.substr(0, physicalLine.length() - 1) ;
         }
         else{
@@ -109,10 +107,42 @@ const std::string intToString( int i )
     return s.str();
 }
 
-bool Interpreter::lookAt( const AttributeMap & )
+bool Interpreter::lookAt( const AttributeMap & am )
 {
-    osg::Matrix m = osg::Matrix::lookAt(osg::Vec3(0, 200, 0), osg::Vec3(200, 200, 0), osg::Vec3(0, 0, 1));
-    return _viewer->setLookAt( m );
+    if ( ( am.optionalValue("extent").empty() || am.optionalValue("origin").empty() )  && ((am.optionalValue("eye").empty() || am.optionalValue("center").empty() || am.optionalValue("up").empty()) ) ) return false;
+
+    if ( am.optionalValue("extent").empty() ){
+        osg::Vec3d eye, center, up;
+        if ( !( std::stringstream( am.value("eye") ) >> eye.x() >> eye.y() >> eye.z() ) 
+           ||!( std::stringstream( am.value("center") ) >> center.x() >> center.y() >> center.z() )
+           ||!( std::stringstream( am.value("up") ) >> up.x() >> up.y() >> up.z() )){
+            ERROR << "cannot parse eye, center or up";
+            return false;
+        }
+
+        return _viewer->setLookAt( eye, center, up );
+    }
+    else {
+        osg::Vec3d origin;
+        if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
+            ERROR << "cannot parse origin";
+            return false;
+        }
+
+        float xmin, ymin, xmax, ymax;
+        std::stringstream ext( am.value("extent") );
+        std::string l;
+        if ( !(ext >> xmin >> ymin)
+            || !std::getline(ext, l, ',')
+            || !(ext >> xmax >> ymax) ) {
+            ERROR << "cannot parse extent";
+            return false;
+        }
+        return _viewer->lookAtExtent( xmin - origin.x(), 
+                                      ymin - origin.y(), 
+                                      xmax - origin.x(), 
+                                      ymax - origin.y());
+    }
 }
 
 bool Interpreter::loadFile( const AttributeMap & am )
