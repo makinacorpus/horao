@@ -287,8 +287,8 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                         + "origin=\""    + escapeXMLString(am.value("origin"))          + "\" "
                         + "query=\""     + escapeXMLString(query) + "\"" + POSTGIS_EXTENSION;
 
-                    pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
-                    pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
+                    pagedLod->setFileName( ilod,  pseudoFile );
+                    pagedLod->setRange( ilod, lodDistance[ilod+1], lodDistance[ilod] );
                 }
                 pagedLod->setCenter( osg::Vec3( xm+.5*tileSize, ym+.5*tileSize ,0) - origin );
                 pagedLod->setRadius( .5*tileSize*std::sqrt(2.0) );
@@ -398,8 +398,8 @@ bool Interpreter::loadElevation(const AttributeMap & am)
                         + "mesh_size=\"" + escapeXMLString(am.value("mesh_size_"+lodIdx)) + "\" "
                         + "extent=\""    + extent.str()                                   + "\" " + MNT_EXTENSION;
 
-                    pagedLod->setFileName( lodDistance.size()-2-ilod,  pseudoFile );
-                    pagedLod->setRange( lodDistance.size()-2-ilod, lodDistance[ilod], lodDistance[ilod+1] );
+                    pagedLod->setFileName( ilod,  pseudoFile );
+                    pagedLod->setRange( ilod, lodDistance[ilod+1], lodDistance[ilod] );
                 }
                 pagedLod->setCenter( osg::Vec3( xm+.5*tileSize, ym+.5*tileSize ,0) - origin );
                 pagedLod->setRadius( .5*tileSize*std::sqrt(2.0) );

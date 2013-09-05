@@ -28,23 +28,58 @@
 
 #lookAt eye="0 0 30000" center="0 0 0" up="0 1 0"
 
+#addPlane id="p0" origin="0 0 0" extent="1829995 5150995,1869005 5195005"
 lookAt \
     origin="1845599 5177401 0" \
     extent="1849995 5160995,1859005 5175005"
 
-loadElevation \
-    id="el0" \
-    origin="1845599 5177401 0" \
-    extent="1829995 5150995,1869005 5195005" \
-    mesh_size="50" \
-    file="../test/MNT2009_Altitude_10m_CC46.tif"
-setSymbology id="el0" fill_color_diffuse="#90aa90ff" fill_color_ambient="#90aa90ff" fill_color_specular="#555555ff" fill_color_shininess="5."
 loadVectorPostgis \
-    id="l1" \
+    id="land" \
+    conn_info="dbname='lyon'" \
+    extent="1829995 5150995,1869005 5195005" \
+    origin="1845599 5177401 0" \
+    lod="100000 10" \
+    tile_size="2500" \
+    query_0="SELECT geom AS geom FROM lands /**WHERE TILE && geom*/ " 
+setSymbology \
+    id="land" \
+    fill_color_diffuse="#00ff00ff" \
+    fill_color_ambient="#00ff00ff" \
+    fill_color_specular="#555555ff" \
+    fill_color_shininess="5."
+
+loadVectorPostgis \
+    id="eau" \
+    conn_info="dbname='lyon'" \
+    extent="1829995 5150995,1869005 5195005" \
+    origin="1845599 5177401 -5" \
+    query="SELECT geom AS geom FROM plandeau /**WHERE TILE && geom*/ " 
+setSymbology \
+    id="eau" \
+    fill_color_diffuse="#0000ffff" \
+    fill_color_ambient="#0000ffff" \
+    fill_color_specular="#555555ff" \
+    fill_color_shininess="5."
+
+loadVectorPostgis \
+    id="bati" \
     conn_info="dbname='lyon'" \
     extent="1829995 5150995,1869005 5195005" \
     tile_size="2500" \
     origin="1845599 5177401 0" \
-    lod="10 2500 100000" \
+    lod="100000 2500 10" \
     query_0="SELECT lod1 AS geom FROM cadbatiment /**WHERE TILE && geom*/ " \
     query_1="SELECT lod2 AS geom FROM cadbatiment /**WHERE TILE && geom*/ "
+
+loadElevation \
+    id="terrain" \
+    origin="1845599 5177401 1" \
+    extent="1829995 5150995,1869005 5195005" \
+    mesh_size="50" \
+    file="../test/MNT2009_Altitude_10m_CC46.tif"
+setSymbology \
+    id="terrain" \
+    fill_color_diffuse="#90aa905f" \
+    fill_color_ambient="#90aa905f" \
+    fill_color_specular="#5555555f" \
+    fill_color_shininess="5."
