@@ -163,6 +163,11 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         int w= std::ceil(( xmax - xmin ) * pixelPerMetreX) ;
         int h= std::ceil(( ymax - ymin ) * pixelPerMetreY) ;
 
+        const int Lx = std::max( 1, int(meshSize * pixelPerMetreX) ) ;
+        const int Ly = std::max( 1, int(meshSize * pixelPerMetreY) ) ;
+        w = w / Lx;
+        h = h / Ly;
+
         // resize to fit data (avoid out of bound)
         if ( y < 0 ){
             h = std::max(0, h+y);
@@ -186,7 +191,7 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             << " pixelPerMetreX=" << pixelPerMetreX 
             << " pixelPerMetreY=" << pixelPerMetreY
             << "\n"; 
-        DEBUG_OUT << " x=" << x << " y=" << y << " w=" << w << " h=" << h << "\n"; 
+        DEBUG_OUT << " x=" << x << " y=" << y << " w=" << w << " h=" << h << " Lx=" << Lx  << " Ly=" << Ly << "\n"; 
 
         //if ( x<0 || y<0 || (x + w) > pixelWidth || (y + h) > pixelHeight ){
         //    ERROR << "specified extent=\"" << am["extent"] 
@@ -205,10 +210,6 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
 
         osg::ref_ptr<osg::HeightField> hf( new osg::HeightField() );
 
-        const int Lx = std::max( 1, int(meshSize * pixelPerMetreX) ) ;
-        const int Ly = std::max( 1, int(meshSize * pixelPerMetreY) ) ;
-        w = w / Lx + 1 ;
-        h = h / Ly +1 ;
         hf->allocate( w, h );
         hf->setXInterval( Lx / pixelPerMetreX );
         hf->setYInterval( Ly / pixelPerMetreY );

@@ -7,6 +7,7 @@
 #include <osg/Material>
 #include <osg/Geode>
 #include <osg/ShapeDrawable>
+#include <osg/PositionAttitudeTransform>
 
 #include <iostream>
 #include <iomanip>
@@ -94,12 +95,23 @@ const std::string intToString( int i )
 
 bool Interpreter::loadFile( const AttributeMap & am )
 {
-    if ( am.value("id").empty() || am.value("file").empty() ) return false;
+    if ( am.value("id").empty() || am.value("file").empty() || am.value("origin").empty()  ) return false;
+
+    osg::Vec3d origin;
+    if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
+        ERROR << "cannot parse origin";
+        return false;
+    }
+
     osg::ref_ptr< osg::Node > node = osgDB::readNodeFile( am.value("file") );
 
     if (!node.get()) return false;
 
-    return _viewer->addNode( am.value("id"), node.get() );
+    osg::ref_ptr< osg::PositionAttitudeTransform > tr = new osg::PositionAttitudeTransform;
+    tr->setPosition( -origin );
+    tr->addChild( node.get() );
+
+    return _viewer->addNode( am.value("id"), tr.get() );
 
 }
 
@@ -137,7 +149,7 @@ bool Interpreter::addSky( const AttributeMap & am )
 
 bool Interpreter::addPlane( const AttributeMap & am )
 {
-    if ( am.value("id").empty() || am.value("extent").empty() ) return false;
+    if ( am.value("id").empty() || am.value("extent").empty() || am.value("origin").empty() ) return false;
 
     double xmin, ymin, xmax, ymax;
     std::stringstream ext( am.value("extent") );
@@ -265,6 +277,19 @@ bool Interpreter::loadElevation(const AttributeMap & am)
       || am.value("extent").empty()
       || am.value("file").empty()
       ) return false;
+
+
+    // test if an terain db exist (.ive)
+    std::string ive(am.value("file"));
+    if ( ive.length() <= 4){
+        ERROR << "file=\""<< ive << "\" filename is too short (missing exetension ?)\n";
+        return false;
+    }
+    ive.replace( ive.length() - 4, std::string::npos, ".ive" );
+    AttributeMap amIve( am );
+    amIve["file"] = ive;
+    if ( loadFile(amIve) ) return true;
+    else std::cout << "did not find \"" << ive << "\"\n";
 
     // with LOD
     if ( ! am.optionalValue("lod").empty() ){
