@@ -326,6 +326,16 @@ class Canvas3D:
             if layer.id() not in layers and p.visible:
                 self.setLayerVisibility( layer, False )
 
+    # qgis signal : extents changed
+    def updateCamera( self ):
+        vExtent = self.iface.mapCanvas().extent()
+        center = self.fullExtent.center()
+        self.sendToViewer( 'lookAt', { 'origin' : "%f %f 0" % (center.x(), center.y()),
+                                       'extent' : "%f %f,%f %f" % (vExtent.xMinimum(),
+                                                                   vExtent.yMinimum(),
+                                                                   vExtent.xMaximum(),
+                                                                   vExtent.yMaximum() ) } )
+
     # run method that performs all the real work
     def run(self):
 
@@ -337,6 +347,8 @@ class Canvas3D:
             QObject.connect( registry, SIGNAL( "layerWillBeRemoved( QString )" ), self.onLayerRemoved )
             # when a layer' state changes (in particular: its visibility)
             QObject.connect( self.iface.mapCanvas(), SIGNAL( "layersChanged()" ), self.onLayersChanged )
+            # when the extent has changed
+            QObject.connect( self.iface.mapCanvas(), SIGNAL( "extentsChanged()" ), self.updateCamera )
             self.signalsConnected = True
 
         # get the current global extent
@@ -359,13 +371,7 @@ class Canvas3D:
         self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
 
         # set camera
-        vExtent = self.iface.mapCanvas().extent()
-        center = self.fullExtent.center()
-        self.sendToViewer( 'lookAt', { 'origin' : "%f %f 0" % (center.x(), center.y()),
-                                       'extent' : "%f %f,%f %f" % (vExtent.xMinimum(),
-                                                                   vExtent.yMinimum(),
-                                                                   vExtent.xMaximum(),
-                                                                   vExtent.yMaximum() ) } )
+        self.updateCamera()
 
         # load every visible layer
         layers = registry.mapLayers()
