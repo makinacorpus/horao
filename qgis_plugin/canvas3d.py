@@ -37,7 +37,12 @@ import subprocess
 qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
 
 SIMPLEVIEWER_BIN = qset.value( "simpleviewer_path", "simpleViewerd" )
-OSGDEM_BIN = qset.value( "osgdem_path", "simpleViewerd" )
+
+DEM_NR_LEVELS = qset.value( "dem_nr_levels", 6 )
+DEM_USE_OSGDEM = qset.value( "use_osgdem", True )
+DEM_OSGDEM_BIN = qset.value( "osgdem_path", "osgdem" )
+# Turn to true to activate draping by the viewer
+DEM_VIEWER_DRAPING = qset.value( "dem_viewer_draping", True )
 
 # distance, in meters, between each vector layer
 Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", 3 )
@@ -48,6 +53,8 @@ TILE_SIZE = qset.value( "tile_size", 1000 )
 
 # will create the settings file if not present
 qset.setValue( "simpleviewer_path", SIMPLEVIEWER_BIN )
+
+WIN_TITLE = "Canvas3D"
 
 class LayerInfo:
     def __init__( self ):
@@ -83,11 +90,11 @@ class Canvas3D:
 
         # Add toolbar button and menu item
         self.iface.addToolBarIcon(self.action)
-        self.iface.addPluginToMenu(u"&Canvas3D", self.action)
+        self.iface.addPluginToMenu( WIN_TITLE, self.action)
 
     def unload(self):
         # Remove the plugin menu item and icon
-        self.iface.removePluginMenu(u"&Canvas3D", self.action)
+        self.iface.removePluginMenu( WIN_TITLE, self.action)
         self.iface.removeToolBarIcon(self.action)
 
     def sendToViewer( self, cmd, args ):
@@ -98,6 +105,24 @@ class Canvas3D:
                 return
             if r[0] != 'ok':
                 QMessageBox.warning( None, "Communication error", r[1]['msg'] )
+
+    def generateTerrainFile( self, fileSrc, iveFile ):
+        try:
+            sys.stderr.write("Generating IVE file ...\n")
+            p = subprocess.Popen([ DEM_OSGDEM_BIN, "-d", fileSrc, "-l", "%d" % DEM_NR_LEVELS, "-o", iveFile],
+                                 shell = False )
+
+            r = p.wait()
+            if r != 0:
+                QMessageBox.warning( None, WIN_TITLE, "osgdem returned %d, check the IVE file generated" % r )
+                return False
+        except OSError as e:
+            QMessageBox.warning( None, WIN_TITLE, "Problem executing '%s':%s" % (DEM_OSGDEM_BIN, e.strerror) )
+            return False
+
+        return True
+        
+
 
     def addLayer( self, layer ):
         print "layer %s added: %s" % (layer.id(), layer.source() )
@@ -111,15 +136,16 @@ class Canvas3D:
                 break
             z = z + 1
 
-        # get raster layer, if any
         elevationFile = None
-        registry = QgsMapLayerRegistry.instance()
-        for name, l in registry.mapLayers().iteritems():
-            if l.type() == 1:
-                provider = l.dataProvider()
-                if provider.name() == 'gdal' and provider.bandCount() == 1 and provider.dataType( 1 ) != QGis.Byte:
-                    elevationFile = l.source()
-                    break
+        if DEM_VIEWER_DRAPING:
+            # get raster layer, if any
+            registry = QgsMapLayerRegistry.instance()
+            for name, l in registry.mapLayers().iteritems():
+                if l.type() == 1:
+                    provider = l.dataProvider()
+                    if provider.name() == 'gdal' and provider.bandCount() == 1 and provider.dataType( 1 ) != QGis.Byte:
+                        elevationFile = l.source()
+                        break
 
         style = {}
         ret = None
@@ -213,25 +239,33 @@ class Canvas3D:
                 origin = "%f %f %f" % ( center.x(), center.y(), (z-1) * Z_VECTOR_FIGHT_GAP + Z_DEM_FIGHT_GAP )
 
                 fileSrc = layer.source()
-                fileName, fileExt = os.path.splitext( fileSrc )
-                iveFile = fileName + ".ive"
-                if os.path.exists( iveFile ):
-                    fileSrc = iveFile
-                else:
-                    # generate the .ive file if not present
-                    sys.stderr.write("Generating .ive file ...")
-                    r = subprocess.call([ OSGDEM_BIN, "-d", fileSrc, "-l", "6", "-o", iveFile], shell = False )
-                    sys.stderr.write("return code: %d" % r )
+
+                if DEM_USE_OSGDEM:
+                    fileName, fileExt = os.path.splitext( fileSrc )
+                    iveFile = fileName + ".ive"
+                    if not os.path.exists( iveFile ):
+                        r = self.generateTerrainFile( fileSrc, iveFile )
+                        if not r:
+                            return
                     fileSrc = iveFile
 
                 if provider.bandCount() == 1 and provider.dataType( 1 ) != QGis.Byte:
+
+                    if layer.hasScaleBasedVisibility():
+                        lmin = layer.minimumScale()
+                        lmax = layer.maximumScale()
+                    else:
+                        # by default, we enable on demand loading
+                        lmin = 0
+                        lmax = 10000000
+
                     self.sendToViewer( 'loadElevation', { 'id': layer.id(),
-                                                          'file':layer.source(),
+                                                          'file': fileSrc,
                                                           'extent' : extent,
                                                           'origin' : origin,
-                                                          'mesh_size_0' : '10',
-                                                          'lod' : '10000000 0',
-                                                          'tile_size' : TILE_SIZE} )
+                                                          'mesh_size_0' : TILE_SIZE,
+                                                          'lod' : "%f %f" % (lmax, lmin)
+                                                          } )
                 else:
                     pass
                     # not supported yet self.sendToViewer( 'loadImageGDAL', { 'id': layer.id(), 'url':layer.source()} )
@@ -313,13 +347,13 @@ class Canvas3D:
         epsg = renderer.destinationCrs().authid()
 
         if extent.isEmpty():
-            QMessageBox.information( None, "Canvas3D", "No layer loaded, no extent defined, aborting" )
+            QMessageBox.information( None, WIN_TITLE, "No layer loaded, no extent defined, aborting" )
             return
 
         try:
             self.vpipe.start( SIMPLEVIEWER_BIN )
         except OSError as e:
-            QMessageBox.warning( None, "Canvas3D", "Problem starting %s: %s" % (SIMPLEVIEWER_BIN, e.strerror ) )
+            QMessageBox.warning( None, WIN_TITLE, "Problem starting %s: %s" % (SIMPLEVIEWER_BIN, e.strerror ) )
             return
 
         self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
