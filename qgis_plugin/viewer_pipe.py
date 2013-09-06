@@ -39,7 +39,7 @@ class ViewerPipe:
 
     def start( self, execName ):
         self.stop()
-        self.process = subprocess.Popen(execName, shell = True, stdin = subprocess.PIPE, stdout = subprocess.PIPE )
+        self.process = subprocess.Popen(execName, shell = False, stdin = subprocess.PIPE, stdout = subprocess.PIPE )
 
     def stop( self ):
         if self.running():
@@ -67,6 +67,6 @@ class ViewerPipe:
             ret = [ root.tag, root.attrib ]
             return ret
         except ET.ParseError:
-            return [ 'error', {'msg': 'XML Parsing error'} ]
+            return [ 'error', {'msg': 'XML Parsing error on "%s"' % ret} ]
 
 

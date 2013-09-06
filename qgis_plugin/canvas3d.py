@@ -34,15 +34,20 @@ import subprocess
 
 # constants. TODO : allow user to set them up
 
-SIMPLEVIEWER_BIN = "simpleViewerd"
-OSGDEM_BIN = "osgdem"
+qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
+
+SIMPLEVIEWER_BIN = qset.value( "simpleviewer_path", "simpleViewerd" )
+OSGDEM_BIN = qset.value( "osgdem_path", "simpleViewerd" )
 
 # distance, in meters, between each vector layer
-Z_VECTOR_FIGHT_GAP = 2
+Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", 3 )
 # distance, in meters on top of DEM layer
-Z_DEM_FIGHT_GAP = 5
+Z_DEM_FIGHT_GAP = qset.value(" z_dem_fight", 5 )
 # tile size
-TILE_SIZE = 1000
+TILE_SIZE = qset.value( "tile_size", 1000 )
+
+# will create the settings file if not present
+qset.setValue( "simpleviewer_path", SIMPLEVIEWER_BIN )
 
 class LayerInfo:
     def __init__( self ):
@@ -102,9 +107,19 @@ class Canvas3D:
         visibleLayers = self.iface.mapCanvas().mapRenderer().layerSet()
         z = 0
         for l in visibleLayers:
-            if l == layer:
+            if l == layer.id():
                 break
             z = z + 1
+
+        # get raster layer, if any
+        elevationFile = None
+        registry = QgsMapLayerRegistry.instance()
+        for name, l in registry.mapLayers().iteritems():
+            if l.type() == 1:
+                provider = l.dataProvider()
+                if provider.name() == 'gdal' and provider.bandCount() == 1 and provider.dataType( 1 ) != QGis.Byte:
+                    elevationFile = l.source()
+                    break
 
         style = {}
         ret = None
@@ -117,15 +132,8 @@ class Canvas3D:
             # first symbol layer
             symL = sym.symbolLayer( 0 )
 
-            if symL.type() == 0: # point
-                style['point_fill'] = symL.color().name()
-            elif symL.type() == 1: # line
-                style['stroke_color'] = symL.color().name()
-            elif symL.type() == 2: # polygon
+            if symL.type() == 2: # polygon
                 style['fill_color_diffuse'] = symL.color().name()
-#                style['stroke_color'] = symL.borderColor().name()
-#                style['stroke-width'] = str(symL.borderWidth() / self.iface.mapCanvas().mapUnitsPerPixel() * 1000) + "px"
-#                style['stroke-linecap'] = 'square'
 
             if providerName == 'postgres':
                 # parse connection string
@@ -180,10 +188,11 @@ class Canvas3D:
                     lmax = 10000000
 
                 # TODO : conversion from 1:N scale to distance to ground
-                args['lod'] = "%f %f" % (layer.maximumScale(), layer.minimumScale())
+                args['lod'] = "%f %f" % (lmax, lmin)
                 args['query_0'] = query
                 args['tile_size'] = TILE_SIZE
-                #args['query'] = query
+                if elevationFile:
+                    args['elevation'] = elevationFile
                     
                 self.sendToViewer( 'loadVectorPostgis', args )
                 self.layers[ layer ] = LayerInfo( layer.id(), False )
@@ -246,8 +255,9 @@ class Canvas3D:
         center = self.fullExtent.center()
         self.sendToViewer( 'addPlane', { 'id' : 'p0',
                                          'extent' : "%f %f,%f %f" % (xmin, ymin, xmax, ymax),
-                                         'origin' : "%f %f 1" % (center.x(), center.y()),
-                                         'fill_color_diffuse': '#ffffffff' } )
+                                         'origin' : "%f %f 1" % (center.x(), center.y()) } )
+        self.sendToViewer( 'setSymbology', { 'id' : 'p0', 
+                                             'fill_color_diffuse': '#ffffffff' } )
 
     def setLayerVisibility( self, layer, visibility ):
         if not self.layers.has_key( layer ):
@@ -306,7 +316,11 @@ class Canvas3D:
             QMessageBox.information( None, "Canvas3D", "No layer loaded, no extent defined, aborting" )
             return
 
-        self.vpipe.start( SIMPLEVIEWER_BIN )
+        try:
+            self.vpipe.start( SIMPLEVIEWER_BIN )
+        except OSError as e:
+            QMessageBox.warning( None, "Canvas3D", "Problem starting %s: %s" % (SIMPLEVIEWER_BIN, e.strerror ) )
+            return
 
         self.setExtent( epsg, extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
 
