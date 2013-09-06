@@ -34,8 +34,8 @@ import subprocess
 
 # constants. TODO : allow user to set them up
 
-SIMPLEVIEWER_BIN = "/home/hme/src/3dstack/build/bin/simpleViewer"
-OSGDEM_BIN = "/home/hme/src/VirtualPlanetBuilder/build/bin/osgdem"
+SIMPLEVIEWER_BIN = "simpleViewerd"
+OSGDEM_BIN = "osgdem"
 
 # distance, in meters, between each vector layer
 Z_VECTOR_FIGHT_GAP = 2
@@ -180,7 +180,7 @@ class Canvas3D:
                     lmax = 10000000
 
                 # TODO : conversion from 1:N scale to distance to ground
-                args['lod'] = "%f %f" % (layer.minimumScale(), layer.maximumScale() )
+                args['lod'] = "%f %f" % (layer.maximumScale(), layer.minimumScale())
                 args['query_0'] = query
                 args['tile_size'] = TILE_SIZE
                 #args['query'] = query
@@ -221,7 +221,7 @@ class Canvas3D:
                                                           'extent' : extent,
                                                           'origin' : origin,
                                                           'mesh_size_0' : '10',
-                                                          'lod' : '0 10000000',
+                                                          'lod' : '10000000 0',
                                                           'tile_size' : TILE_SIZE} )
                 else:
                     pass

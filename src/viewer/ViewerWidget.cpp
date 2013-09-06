@@ -5,6 +5,7 @@
 #include <osg/Material>
 #include <osgGA/TrackballManipulator>
 #include <osgGA/TerrainManipulator>
+#include <osgGA/OrbitManipulator>
 #include <osgGA/StateSetManipulator>
 #include <osgDB/ReadFile>
 #include <osgText/Text>
@@ -192,7 +193,7 @@ ViewerWidget::ViewerWidget():
 
         addEventHandler( new osgViewer::StatsHandler );
         //setCameraManipulator( new osgGA::TerrainManipulator );
-        setCameraManipulator( new osgGA::TrackballManipulator );
+        setCameraManipulator( new osgGA::OrbitManipulator );
         
         addEventHandler(new osgViewer::WindowSizeHandler);
         addEventHandler(new osgViewer::StatsHandler);
@@ -219,10 +220,11 @@ ViewerWidget::ViewerWidget():
         osg::StateSet* stateset = _root->getOrCreateStateSet();
         stateset->setAttributeAndModes( program.get() );
         stateset->addUniform( new osg::Uniform("lightDiffuse", osg::Vec4(1.0f, 1.0f, 1.0f, 1.0f)) );
-        stateset->addUniform( new osg::Uniform("lightSpecular", osg::Vec4(1.0f, 1.0f, 0.4f, 1.0f)) );
-        stateset->addUniform( new osg::Uniform("shininess", 64.0f) );
+        stateset->addUniform( new osg::Uniform("lightSpecular", osg::Vec4(0.1f, 0.1f, 0.1f, 1.0f)) );
+        stateset->addUniform( new osg::Uniform("shininess", 64.f) );
+        //getLight()->setAmbient(osg::Vec4( 1,1,1,1 ));
 
-        osg::ref_ptr<osg::Uniform> lightPos = new osg::Uniform( "lightPosition", osg::Vec3(10000,20000,30000) );
+        osg::ref_ptr<osg::Uniform> lightPos = new osg::Uniform( "lightPosition", osg::Vec3(10000,20000,3000) );
         stateset->addUniform( lightPos.get() );
     }
 
