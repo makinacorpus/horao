@@ -250,7 +250,7 @@ class Canvas3D:
                                                           'file': fileSrc,
                                                           'extent' : extent,
                                                           'origin' : origin,
-                                                          'mesh_size_0' : int(TILE_SIZE) / 100, # ????
+                                                          'mesh_size_0' : 10, # ???
                                                           'lod' : "%f %f" % (lmax, lmin),
                                                           'tile_size' : TILE_SIZE
                                                           } )
