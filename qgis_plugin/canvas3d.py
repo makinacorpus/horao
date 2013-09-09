@@ -39,8 +39,6 @@ qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
 SIMPLEVIEWER_BIN = qset.value( "simpleviewer_path", "simpleViewerd" )
 
 DEM_NR_LEVELS = qset.value( "dem_nr_levels", 6 )
-DEM_USE_OSGDEM = qset.value( "use_osgdem", True )
-DEM_OSGDEM_BIN = qset.value( "osgdem_path", "osgdem" )
 # Turn to true to activate draping by the viewer
 DEM_VIEWER_DRAPING = qset.value( "dem_viewer_draping", True )
 
@@ -105,24 +103,6 @@ class Canvas3D:
                 return
             if r[0] != 'ok':
                 QMessageBox.warning( None, "Communication error", r[1]['msg'] )
-
-    def generateTerrainFile( self, fileSrc, iveFile ):
-        try:
-            sys.stderr.write("Generating IVE file ...\n")
-            p = subprocess.Popen([ DEM_OSGDEM_BIN, "-d", fileSrc, "-l", "%d" % DEM_NR_LEVELS, "-o", iveFile],
-                                 shell = False )
-
-            r = p.wait()
-            if r != 0:
-                QMessageBox.warning( None, WIN_TITLE, "osgdem returned %d, check the IVE file generated" % r )
-                return False
-        except OSError as e:
-            QMessageBox.warning( None, WIN_TITLE, "Problem executing '%s':%s" % (DEM_OSGDEM_BIN, e.strerror) )
-            return False
-
-        return True
-        
-
 
     # called when layer's properties has been changed through UI
     def onPropertiesChanged( self, layer ):
@@ -250,13 +230,10 @@ class Canvas3D:
 
                 fileSrc = layer.source()
 
-                if DEM_USE_OSGDEM:
-                    fileName, fileExt = os.path.splitext( fileSrc )
-                    iveFile = fileName + ".ive"
-                    if not os.path.exists( iveFile ):
-                        r = self.generateTerrainFile( fileSrc, iveFile )
-                        if not r:
-                            return
+                # look for a .ive file and use it if present
+                fileName, fileExt = os.path.splitext( fileSrc )
+                iveFile = fileName + ".ive"
+                if os.path.exists( iveFile ):
                     fileSrc = iveFile
 
                 if provider.bandCount() == 1 and provider.dataType( 1 ) != QGis.Byte:
@@ -273,8 +250,9 @@ class Canvas3D:
                                                           'file': fileSrc,
                                                           'extent' : extent,
                                                           'origin' : origin,
-                                                          'mesh_size_0' : TILE_SIZE,
-                                                          'lod' : "%f %f" % (lmax, lmin)
+                                                          'mesh_size_0' : int(TILE_SIZE) / 100, # ????
+                                                          'lod' : "%f %f" % (lmax, lmin),
+                                                          'tile_size' : TILE_SIZE
                                                           } )
                 else:
                     pass
