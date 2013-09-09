@@ -154,6 +154,21 @@ class Canvas3D:
         if layer.type() == 0: # vector
 
             if providerName == 'postgres':
+
+                # test 2D/3D geometries:
+                is3D = False
+                provider = layer.dataProvider()
+                sys.stderr.write("get features...\n")
+                it = provider.getFeatures()
+                sys.stderr.write("end of get features...\n")
+                feature = it.next()
+                if feature:
+                    t = feature.geometry().wkbType()
+                    if feature.geometry().wkbType() < 0 : #
+                        is3D = True
+                it.rewind()
+                it.close()
+
                 # parse connection string
                 connection = {}
                 geocolumn = 'geom'
@@ -209,7 +224,7 @@ class Canvas3D:
                 args['lod'] = "%f %f" % (lmax, lmin)
                 args['query_0'] = query
                 args['tile_size'] = TILE_SIZE
-                if elevationFile:
+                if elevationFile and not is3D:
                     args['elevation'] = elevationFile
                     
                 self.sendToViewer( 'loadVectorPostgis', args )
