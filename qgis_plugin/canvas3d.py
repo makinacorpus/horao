@@ -124,6 +124,28 @@ class Canvas3D:
         
 
 
+    # called when layer's properties has been changed through UI
+    def onPropertiesChanged( self, layer ):
+        style = {}
+        if layer.type() == 0: # vector
+            renderer = layer.rendererV2()
+            # first symbol
+            sym = renderer.symbols()[0]
+            # first symbol layer
+            symL = sym.symbolLayer( 0 )
+            if symL.type() == 2: # polygon
+                style['fill_color_diffuse'] = symL.color().name()
+        elif layer.type() == 1: # raster
+            # get 'colorize' option
+            f = layer.hueSaturationFilter()
+            if f.colorizeOn():
+                style['fill_color_diffuse'] = f.colorizeColor().name()
+
+        # send symbology
+        if len(style) > 0:
+            style['id'] = layer.id()
+            self.sendToViewer( 'setSymbology', style )
+
     def addLayer( self, layer ):
         print "layer %s added: %s" % (layer.id(), layer.source() )
         providerName = layer.dataProvider().name()
@@ -147,19 +169,9 @@ class Canvas3D:
                         elevationFile = l.source()
                         break
 
-        style = {}
         ret = None
         # get layer' style
         if layer.type() == 0: # vector
-            renderer = layer.rendererV2()
-            print renderer.type(), renderer.symbols()
-            # first symbol
-            sym = renderer.symbols()[0]
-            # first symbol layer
-            symL = sym.symbolLayer( 0 )
-
-            if symL.type() == 2: # polygon
-                style['fill_color_diffuse'] = symL.color().name()
 
             if providerName == 'postgres':
                 # parse connection string
@@ -229,8 +241,6 @@ class Canvas3D:
         elif layer.type() == 1:
             provider = layer.dataProvider()
 
-            style['fill_color_diffuse'] = '#77ff77ff'
-
             if provider.name() == 'gdal':
                 # warning: band # start at 1
                 extent = self.fullExtent
@@ -272,11 +282,8 @@ class Canvas3D:
 
                 self.layers[ layer ] = LayerInfo( layer.id(), False )
 
-        # send symbology            
-        style['id'] = layer.id()
-        self.sendToViewer( 'setSymbology', style )
-
-
+        # update symbology
+        self.onPropertiesChanged( layer )
 
     def removeLayer( self, layer ):
         if self.layers.has_key( layer ):
@@ -336,6 +343,7 @@ class Canvas3D:
                                                                    vExtent.xMaximum(),
                                                                    vExtent.yMaximum() ) } )
 
+
     # run method that performs all the real work
     def run(self):
 
@@ -349,6 +357,9 @@ class Canvas3D:
             QObject.connect( self.iface.mapCanvas(), SIGNAL( "layersChanged()" ), self.onLayersChanged )
             # when the extent has changed
             QObject.connect( self.iface.mapCanvas(), SIGNAL( "extentsChanged()" ), self.updateCamera )
+
+            q = self.iface.mainWindow()
+            QObject.connect( q, SIGNAL( "propertiesChanged( QgsMapLayer * )" ), self.onPropertiesChanged )
             self.signalsConnected = True
 
         # get the current global extent
