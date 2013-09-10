@@ -22,6 +22,8 @@ struct ViewerWidget: osgViewer::Viewer
 
 
 private:
+
+    osgGA::CameraManipulator* getCurrentManipulator();
     OpenThreads::Mutex _mutex;
     osg::ref_ptr<osg::Group> _root;
     typedef std::map< std::string, osg::ref_ptr<osg::Node> > NodeMap;

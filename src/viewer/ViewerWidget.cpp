@@ -3,6 +3,7 @@
 
 #include <osg/CullFace>
 #include <osg/Material>
+#include <osgGA/KeySwitchMatrixManipulator>
 #include <osgGA/TrackballManipulator>
 #include <osgGA/TerrainManipulator>
 #include <osgGA/OrbitManipulator>
@@ -180,7 +181,6 @@ ViewerWidget::ViewerWidget():
         //camera->setComputeNearFarMode(osg::CullSettings::COMPUTE_NEAR_FAR_USING_BOUNDING_VOLUMES);
 
         _root = new osg::Group;
-        setSceneData( _root.get() );
 
 
         // create sunlight
@@ -192,9 +192,15 @@ ViewerWidget::ViewerWidget():
         //getLight()->setSpecular(osg::Vec4( 0.9,0.9,0.9,1 ));
 
         addEventHandler( new osgViewer::StatsHandler );
-        //setCameraManipulator( new osgGA::TerrainManipulator );
-        setCameraManipulator( new osgGA::OrbitManipulator );
-        
+
+        osg::ref_ptr<osgGA::KeySwitchMatrixManipulator> keyswitchManipulator = new osgGA::KeySwitchMatrixManipulator;
+
+        keyswitchManipulator->addMatrixManipulator( '1', "Terrain", new osgGA::TerrainManipulator() );
+        keyswitchManipulator->addMatrixManipulator( '2', "Orbit", new osgGA::OrbitManipulator() );
+        keyswitchManipulator->addMatrixManipulator( '3', "Trackball", new osgGA::TrackballManipulator() );
+
+        setCameraManipulator( keyswitchManipulator.get() );
+
         addEventHandler(new osgViewer::WindowSizeHandler);
         addEventHandler(new osgViewer::StatsHandler);
         addEventHandler(new osgGA::StateSetManipulator( getCamera()->getOrCreateStateSet()) );
@@ -202,6 +208,7 @@ ViewerWidget::ViewerWidget():
 
         setFrameStamp( new osg::FrameStamp );
 
+        setSceneData( _root.get() );
     }
 
     // back alpha blending for "transparency"
@@ -229,6 +236,16 @@ ViewerWidget::ViewerWidget():
     }
 
     realize();
+}
+
+osgGA::CameraManipulator* ViewerWidget::getCurrentManipulator()
+{
+    osgGA::CameraManipulator* manip = getCameraManipulator();
+    osgGA::KeySwitchMatrixManipulator* kmanip = dynamic_cast< osgGA::KeySwitchMatrixManipulator* >( manip );
+    if ( kmanip ) {
+        return kmanip->getCurrentMatrixManipulator();
+    }
+    return manip;
 }
 
 void ViewerWidget::frame(double time)
@@ -307,8 +324,8 @@ bool ViewerWidget::setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, c
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-    that->getCameraManipulator()->setHomePosition(eye, center, up); 
-    that->getCameraManipulator()->home(0); 
+    that->getCurrentManipulator()->setHomePosition(eye, center, up); 
+    that->getCurrentManipulator()->home(0); 
     return true;
 }
 
@@ -329,8 +346,8 @@ bool ViewerWidget::lookAtExtent( double xmin, double ymin, double xmax, double y
     const osg::Vec3 center(xmin+.5*(xmax-xmin), ymin+.5*(ymax-ymin), 0 );
     const osg::Vec3 eye(center.x(), center.y(), altitude);
 
-    that->getCameraManipulator()->setHomePosition(eye, center, up); 
-    that->getCameraManipulator()->home(0); 
+    that->getCurrentManipulator()->setHomePosition(eye, center, up); 
+    that->getCurrentManipulator()->home(0);
     return true;
 }
 
