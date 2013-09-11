@@ -7,7 +7,7 @@ This is a simple spec sheet for the simple 3d viewer.
 - data loading can be long, so the interpreter/loader and the viewer will run in different threads, nodes will be added to the scenegraph when ready.
 
 The general syntax for commands is:
-<command_name arg1="value1" arg2="value2" ... />
+command_name arg1="value1" arg2="value2" ...
 
 - the command is interpreted at the end of the line with the character "\n"
 - values are XML attributes. It follows the rules of XML attribute escaping (&quot; for double quotes, etc.)
@@ -31,11 +31,22 @@ arguments :
 
 * id (mandatory)
 
-* dbname: name of the database
-* host
-* user
-* password
-* query
+* conninfo="dbname='' host='' user=''"
+* origin="x y z"
+* extent="xmin ymin,xmax ymax"
+
+without LOD:
+* query="SQL query"
+
+with LOD:
+* lod="lod_distance_level1 lod_distance_level2 ..." (from the further to the nearest)
+* tile_size=
+* query_0=""
+* query_1=""
+
+options:
+* geocolumn= name of the geometry column (geom by default)
+* file= elevation file to drape objects on
 
 loadRasterGDAL
 ==========
@@ -59,8 +70,31 @@ arguments:
 
 * driver (mandatory): only "gdal" for now.
 * id (mandatory)
+* origin
+* extent
+* file= GDAL file. It will load the .ive (generated from osgdem) if present
 
-* url
+without LOD:
+* mesh_size
+
+with LOD:
+* tile_size
+* lod="lod_altitude_1 lod_altitude_2 ..." (from the further to the nearest)
+* mesh_size_0
+* mesh_size_1
+* ...
+
+loadFile
+========
+
+Load an OSG file
+
+arguments:
+----------
+
+* id
+* file : file path
+* origin
 
 unloadLayer
 ===========
@@ -102,9 +136,10 @@ arguments:
 
 * id (mandatory): layer id to modify
 
-fill_color="#rrggbb"
-stroke_color="#rrggbb"
-stroke_width
+fill_color_ambient="#rrggbb"
+fill_color_diffuse="#rrggbb"
+fill_color_specular="#rrggbb"
+fill_color_shininess=float between 0 and 1
 ...
 
 setFullExtent
@@ -121,21 +156,23 @@ x_max (mandatory)
 y_min (mandatory)
 y_max (mandatory)
 
-setView
-=============
+lookAt
+======
 
 Sets the camera parameters
 
 arguments:
 ----------
 
-x (mandatory): x position of the camera
-y (mandatory): y position of the camera
-z (mandatory): z position of the camera
-px: x position to look at
-py: y position to look at
-pz: z position to look at
-=> FIXME: or angles ?
+eye="x y z"
+center="x y z"
+up="x y z"
+
+
+or
+
+origin="x y z"
+extent="xmin ymin,xmax ymax"
 
 addEffect
 =========
@@ -158,4 +195,16 @@ arguments:
 
 * name (mandatory)
 * id: optional layer id to remove the effect from
+
+addPlane
+========
+
+Adds a simple plane to the scene
+
+arguments:
+----------
+
+* id
+* origin
+* extent
 
