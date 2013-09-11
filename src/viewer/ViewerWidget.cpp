@@ -160,7 +160,7 @@ ViewerWidget::ViewerWidget():
         traits->windowDecoration = true;
         traits->x = 0;
         traits->y = 0;
-        traits->width = WINDOW_HEIGHT;
+        traits->width = WINDOW_WIDTH;
         traits->height = WINDOW_HEIGHT;
         traits->doubleBuffer = true;
         traits->alpha = ds->getMinimumNumAlphaBits();

@@ -184,7 +184,7 @@ void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, f
     }
     
     // translate all vtx by base center
-    const osg::Vec3 bc = center*_layerToWord - osg::Vec3(0,0,.5f*height); // center of the base
+    const osg::Vec3 bc = center*_layerToWord;
     const size_t sz = _vtx.size();
     assert( _vtx.size() - o == 20 );
     for ( size_t i=o; i<sz; i++ ) _vtx[i] += bc;
