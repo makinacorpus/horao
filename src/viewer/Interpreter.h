@@ -81,19 +81,6 @@ private:
 };
 
 inline
-bool isQueryValid( const std::string & query, const std::string& geocolumn )
-{
-    // query must define either a geometry column named "geom"
-    // or the triplet "pos" "height" "width" to create bar diagrams
-    if ( query.find( geocolumn ) != std::string::npos ) return true;
-    else if (  query.find("pos") != std::string::npos
-            && query.find("height") != std::string::npos
-            && query.find("width") != std::string::npos ) return true;
-    ERROR << "invalid query\n";
-    return false;
-}
-
-inline
 const std::string 
 tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
 { 

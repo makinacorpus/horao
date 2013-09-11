@@ -207,7 +207,7 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
                 const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
                 const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
 
-                mesh.addBar( osg::Vec3(p.x, p.y, p.z + h/2), w, w, h);
+                mesh.addBar( osg::Vec3(p.x, p.y, p.z), w, w, h);
             }
 
 /*

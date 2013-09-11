@@ -248,8 +248,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
            const int idx = lodDistance.size()-2;
            if (idx < 0) continue;
            const std::string lodIdx = intToString( idx );
-           if ( am.value("query_"+lodIdx ).empty() 
-                || !isQueryValid( am.value("query_"+lodIdx ), geocolumn ) ) return false;
+           if ( am.value("query_"+lodIdx ).empty() ) return false;
         }
         
         float xmin, ymin, xmax, ymax;
@@ -308,7 +307,7 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
     }
     // without LOD
     else{
-        if ( am.value("query").empty() || !isQueryValid( am.value("query"), geocolumn ) ) return false;
+        if ( am.value("query").empty() ) return false;
       const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
           + "origin=\""          + escapeXMLString(am.value("origin"))          + "\" "
           + "geocolumn=\"" + escapeXMLString(geocolumn) + "\" "
