@@ -38,14 +38,13 @@ qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
 
 SIMPLEVIEWER_BIN = qset.value( "simpleviewer_path", "simpleViewerd" )
 
-DEM_NR_LEVELS = qset.value( "dem_nr_levels", 6 )
 # Turn to true to activate draping by the viewer
 DEM_VIEWER_DRAPING = qset.value( "dem_viewer_draping", True )
 
 # distance, in meters, between each vector layer
-Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", 3 )
+Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", 0 )
 # distance, in meters on top of DEM layer
-Z_DEM_FIGHT_GAP = qset.value(" z_dem_fight", 5 )
+Z_DEM_FIGHT_GAP = qset.value( "z_dem_fight", 1.5 )
 # tile size
 TILE_SIZE = qset.value( "tile_size", 1000 )
 
@@ -113,7 +112,9 @@ class Canvas3D:
             sym = renderer.symbols()[0]
             # first symbol layer
             symL = sym.symbolLayer( 0 )
-            if symL.type() == 2: # polygon
+            if symL.type() == 0: # point
+                style['fill_color_diffuse'] = symL.color().name()
+            elif symL.type() == 2: # polygon
                 style['fill_color_diffuse'] = symL.color().name()
         elif layer.type() == 1: # raster
             # get 'colorize' option
@@ -136,7 +137,10 @@ class Canvas3D:
         for l in visibleLayers:
             if l == layer.id():
                 break
-            z = z + 1
+            if layer.type() == 0: # vector
+                z = z + Z_VECTOR_FIGHT_GAP
+            elif layer.type() == 1: # raster
+                z = z + Z_DEM_FIGHT_GAP
 
         elevationFile = None
         if DEM_VIEWER_DRAPING:
@@ -195,7 +199,10 @@ class Canvas3D:
                     table=table+'"'
                 (geocolumn,query) = q.split('sql=')
                 geocolumn = geocolumn.strip('() ')
-                args['geocolumn'] = geocolumn
+
+                # use geocolumn only for polygons
+                if layer.geometryType() == 2:
+                    args['geocolumn'] = geocolumn
 
                 args['id'] = layer.id()
                 args['conn_info'] = ' '.join( ["%s='%s'" % (k,v) for k,v in connection.iteritems() if k in ['dbname','user','port']] )
@@ -203,7 +210,7 @@ class Canvas3D:
 
                 center = self.fullExtent.center()
                 args['extent'] = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
-                args['origin'] = "%f %f %f" % (center.x(), center.y(), z * Z_VECTOR_FIGHT_GAP)
+                args['origin'] = "%f %f %f" % (center.x(), center.y(), z)
                 
                 if table[0:2] == '"(':
                     # table == query (DB manager)
@@ -224,7 +231,7 @@ class Canvas3D:
                 args['lod'] = "%f %f" % (lmax, lmin)
                 args['query_0'] = query
                 args['tile_size'] = TILE_SIZE
-                if elevationFile and not is3D:
+                if elevationFile and not is3D and layer.geometryType() == 2:
                     args['elevation'] = elevationFile
                     
                 self.sendToViewer( 'loadVectorPostgis', args )
@@ -241,7 +248,7 @@ class Canvas3D:
                 extent = self.fullExtent
                 extent = "%f %f,%f %f" % ( extent.xMinimum(), extent.yMinimum(), extent.xMaximum(), extent.yMaximum() )
                 center = self.fullExtent.center()
-                origin = "%f %f %f" % ( center.x(), center.y(), (z-1) * Z_VECTOR_FIGHT_GAP + Z_DEM_FIGHT_GAP )
+                origin = "%f %f %f" % ( center.x(), center.y(), z)
 
                 fileSrc = layer.source()
 
