@@ -4,10 +4,10 @@
     <mapcanvas>
         <units>meters</units>
         <extent>
-            <xmin>1842114.46643188642337918</xmin>
-            <ymin>5174475.60849096719175577</ymin>
-            <xmax>1844706.08881039964035153</xmax>
-            <ymax>5175412.55655828583985567</ymax>
+            <xmin>1842733.33063655300065875</xmin>
+            <ymin>5174668.60949832759797573</ymin>
+            <xmax>1843923.95563777210190892</xmax>
+            <ymax>5175131.10116546787321568</ymax>
         </extent>
         <projections>0</projections>
         <destinationsrs>
@@ -23,7 +23,7 @@
             </spatialrefsys>
         </destinationsrs>
     </mapcanvas>
-    <legend updateDrawingOrder="true" activeLayer="velov_c20130911094845937">
+    <legend updateDrawingOrder="true" activeLayer="cadbatiment20130905154830022">
         <legendlayer drawingOrder="-1" open="true" checked="Qt::Checked" name="velov_c" showFeatureCount="0">
             <filegroup open="true" hidden="false">
                 <legendlayerfile isInOverview="0" layerid="velov_c20130911094845937" visible="1"/>
@@ -60,28 +60,6 @@
             </filegroup>
         </legendlayer>
     </legend>
-    <mapcanvas>
-        <units>meters</units>
-        <extent>
-            <xmin>1840540.87416498246602714</xmin>
-            <ymin>5174136.2651204327121377</ymin>
-            <xmax>1846787.19461376708932221</xmax>
-            <ymax>5176010.16125506814569235</ymax>
-        </extent>
-        <projections>0</projections>
-        <destinationsrs>
-            <spatialrefsys>
-                <proj4>+proj=lcc +lat_1=45.25 +lat_2=46.75 +lat_0=46 +lon_0=3 +x_0=1700000 +y_0=5200000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +units=m +no_defs</proj4>
-                <srsid>1765</srsid>
-                <srid>3946</srid>
-                <authid>EPSG:3946</authid>
-                <description>RGF93 / CC46</description>
-                <projectionacronym>lcc</projectionacronym>
-                <ellipsoidacronym>GRS80</ellipsoidacronym>
-                <geographicflag>false</geographicflag>
-            </spatialrefsys>
-        </destinationsrs>
-    </mapcanvas>
     <projectlayers layercount="7">
         <maplayer minimumScale="-4.65661e-10" maximumScale="1e+08" type="raster" hasScaleBasedVisibilityFlag="0">
             <id>MNT2009_Altitude_10m_CC4620130905150209680</id>
@@ -123,7 +101,7 @@
             </pipe>
             <blendMode>0</blendMode>
         </maplayer>
-        <maplayer minimumScale="3000" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="1" scaleBasedLabelVisibilityFlag="0">
+        <maplayer minimumScale="5000" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="1" scaleBasedLabelVisibilityFlag="0">
             <id>cadbatiment20130905154830022</id>
             <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."cadbatiment" (lod1) sql=</datasource>
             <title></title>
@@ -325,7 +303,7 @@
             <excludeAttributesWFS/>
             <attributeactions/>
         </maplayer>
-        <maplayer minimumScale="-4.65661e-10" maximumScale="3000" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="1" scaleBasedLabelVisibilityFlag="0">
+        <maplayer minimumScale="0" maximumScale="5000" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="1" scaleBasedLabelVisibilityFlag="0">
             <id>cadbatiment20130905155517703</id>
             <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."cadbatiment" (lod2) sql=</datasource>
             <title></title>
@@ -390,10 +368,10 @@
                 <property key="labeling/distInMapUnits" value="false"/>
                 <property key="labeling/enabled" value="false"/>
                 <property key="labeling/fieldName" value=""/>
-                <property key="labeling/fontBold" value="false"/>
+                <property key="labeling/fontBold" value="true"/>
                 <property key="labeling/fontCapitals" value="0"/>
                 <property key="labeling/fontFamily" value="Ubuntu"/>
-                <property key="labeling/fontItalic" value="false"/>
+                <property key="labeling/fontItalic" value="true"/>
                 <property key="labeling/fontLetterSpacing" value="0"/>
                 <property key="labeling/fontLimitPixelSize" value="false"/>
                 <property key="labeling/fontMaxPixelSize" value="10000"/>
@@ -402,7 +380,7 @@
                 <property key="labeling/fontSizeInMapUnits" value="false"/>
                 <property key="labeling/fontStrikeout" value="false"/>
                 <property key="labeling/fontUnderline" value="false"/>
-                <property key="labeling/fontWeight" value="50"/>
+                <property key="labeling/fontWeight" value="75"/>
                 <property key="labeling/fontWordSpacing" value="0"/>
                 <property key="labeling/formatNumbers" value="false"/>
                 <property key="labeling/isExpression" value="false"/>
@@ -1127,9 +1105,9 @@
                 <edittype labelontop="0" editable="1" type="0" name="status"/>
                 <edittype labelontop="0" editable="1" type="0" name="width"/>
             </edittypes>
-            <editform></editform>
+            <editform>.</editform>
             <editforminit></editforminit>
-            <annotationform></annotationform>
+            <annotationform>.</annotationform>
             <editorlayout>generatedlayout</editorlayout>
             <excludeAttributesWMS/>
             <excludeAttributesWFS/>
@@ -1329,9 +1307,9 @@
                 <edittype labelontop="0" editable="1" type="0" name="height"/>
                 <edittype labelontop="0" editable="1" type="0" name="width"/>
             </edittypes>
-            <editform></editform>
+            <editform>.</editform>
             <editforminit></editforminit>
-            <annotationform></annotationform>
+            <annotationform>.</annotationform>
             <editorlayout>generatedlayout</editorlayout>
             <excludeAttributesWMS/>
             <excludeAttributesWFS/>

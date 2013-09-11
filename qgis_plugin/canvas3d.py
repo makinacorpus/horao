@@ -31,8 +31,9 @@ import resources_rc
 import os.path
 import sys
 import subprocess
+import math
 
-# constants. TODO : allow user to set them up
+# constants.
 
 qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
 
@@ -224,11 +225,17 @@ class Canvas3D:
                     lmax = layer.maximumScale()
                 else:
                     # by default, we enable on demand loading
-                    lmin = 0
+                    lmin = 1
                     lmax = 10000000
 
-                # TODO : conversion from 1:N scale to distance to ground
-                args['lod'] = "%f %f" % (lmax, lmin)
+                # conversion from 1:N scale to distance from ground
+                #
+                cnv = self.iface.mapCanvas()
+                # FIXME: we use the default FOV here
+                fov = 29.1 * math.pi / 180.0
+                altMax = 0.5 * (cnv.extent().height() / cnv.scale() * lmax ) / math.tan(fov/2.0)
+                altMin = 0.5 * (cnv.extent().height() / cnv.scale() * lmin ) / math.tan(fov/2.0)
+                args['lod'] = "%f %f" % (altMax, altMin)
                 args['query_0'] = query
                 args['tile_size'] = TILE_SIZE
                 if elevationFile and not is3D and layer.geometryType() == 2:
@@ -265,15 +272,21 @@ class Canvas3D:
                         lmax = layer.maximumScale()
                     else:
                         # by default, we enable on demand loading
-                        lmin = 0
+                        lmin = 1
                         lmax = 10000000
+
+                    cnv = self.iface.mapCanvas()
+                    # FIXME: we use the default FOV here
+                    fov = 29.1 * math.pi / 180.0
+                    altMax = 0.5 * (cnv.extent().height() / cnv.scale() * lmax ) / math.tan(fov/2.0)
+                    altMin = 0.5 * (cnv.extent().height() / cnv.scale() * lmin ) / math.tan(fov/2.0)
 
                     self.sendToViewer( 'loadElevation', { 'id': layer.id(),
                                                           'file': fileSrc,
                                                           'extent' : extent,
                                                           'origin' : origin,
                                                           'mesh_size_0' : 10, # ???
-                                                          'lod' : "%f %f" % (lmax, lmin),
+                                                          'lod' : "%f %f" % (altMax, altMin),
                                                           'tile_size' : TILE_SIZE
                                                           } )
                 else:
