@@ -1,9 +1,7 @@
-xxx3d
+Horao
 =====
 
 Oslandia's 3D visualisation stack
-
-Name to be defined
 
 Current architecture
 --------------------
