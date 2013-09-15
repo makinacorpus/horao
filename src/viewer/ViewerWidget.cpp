@@ -19,127 +19,35 @@
 namespace Stack3d {
 namespace Viewer {
 
-static const char* vertSource =
+const char* vertSourceSSAO = 
 {
-    "uniform vec3 lightPosition;\n"
-    "varying vec3 normal, eyeVec, lightDir;\n"
-    "varying vec4 vertColor;\n"
-    "void main()\n"
-    "{\n"
-        "vec4 vertexInEye = gl_ModelViewMatrix * gl_Vertex;\n"
-        "eyeVec = -vertexInEye.xyz;\n"
-        "lightDir = vec3(lightPosition - vertexInEye.xyz);\n"
-        "normal = gl_NormalMatrix * gl_Normal;\n"
-        "vertColor = gl_Color;\n"
-        "gl_Position = ftransform();\n"
-    "}\n"
+"uniform vec2 g_Resolution;\n"
+"uniform float m_SubPixelShift;\n"
+"\n"
+"attribute vec4 inPosition;\n"
+"attribute vec2 inTexCoord;\n"
+"\n"
+"varying vec2 texCoord;\n"
+"varying vec4 posPos;\n"
+"\n"
+"void main() {\n"
+"gl_Position = inPosition * 2.0 - 1.0; //vec4(pos, 0.0, 1.0);\n"
+"texCoord = inTexCoord;\n"
+"vec2 rcpFrame = vec2(1.0) / g_Resolution;\n"
+"posPos.xy = inTexCoord.xy;\n"
+"posPos.zw = inTexCoord.xy - (rcpFrame * vec2(0.5 + m_SubPixelShift));\n"
+"}\n"
 };
 
-static const char* fragSource =
+const char* fragSourceSSAO
 {
-    "uniform vec4 lightDiffuse;\n"
-    "uniform vec4 lightSpecular;\n"
-    "uniform float shininess;\n"
-    "varying vec3 normal, eyeVec, lightDir;\n"
-    "void main (void)\n"
-    "{\n"
-        "vec4 finalColor = gl_FrontLightModelProduct.sceneColor;\n"
-        "vec3 N = normalize(normal);\n"
-        "vec3 L = normalize(lightDir);\n"
-        "float lambert = dot(N,L);\n"
-        "if (lambert > 0.0)\n"
-        "{\n"
-            "finalColor += lightDiffuse * lambert;\n"
-            "vec3 E = normalize(eyeVec);\n"
-            "vec3 R = reflect(-L, N);\n"
-            "float specular = pow(max(dot(R, E), 0.0), shininess);\n"
-            "finalColor += lightSpecular * specular;\n"
-        "}\n"
-        "gl_FragColor = finalColor;\n"
-    "}\n"
-};
-
-/*
-static const char* fragSourceFXAA =
-{
-"    // FXAA shader, GLSL code adapted from:\n"
-"    // http://horde3d.org/wiki/index.php5?title=Shading_Technique_-_FXAA\n"
-"    // Whitepaper describing the technique:\n"
-"    // http://developer.download.nvidia.com/assets/gamedev/files/sdk/11/FXAA_WhitePaper.pdf\n"
+"uniform vec2 g_Resolution;\n"
+"uniform sampler2D m_Texture;\n"
+"varying vec2 texCoord;\n"
+"void main() {\n"
+"gl_FragColor = texture2D(m_Texture, texCoord/g_Resolution) ;\n"
+"}\n"
 "\n"
-"    precision mediump float;\n"
-"    precision mediump int;\n"
-"\n"
-"    uniform sampler2D textureSampler;\n"
-"\n"
-"    // The inverse of the texture dimensions along X and Y\n"
-"    uniform vec2 texcoordOffset;\n"
-"\n"
-"    varying vec4 vertColor;\n"
-"    varying vec4 vertTexcoord;\n"
-"\n"
-"    void main() {\n"
-"        // The parameters are hardcoded for now, but could be\n"
-"        // made into uniforms to control fromt he program.\n"
-"        float FXAA_SPAN_MAX = 8.0;\n"
-"        float FXAA_REDUCE_MUL = 1.0/8.0;\n"
-"        float FXAA_REDUCE_MIN = (1.0/128.0);\n"
-"\n"
-"        vec3 rgbNW = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(-1.0, -1.0) * texcoordOffset)).xyz;\n"
-"        vec3 rgbNE = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(+1.0, -1.0) * texcoordOffset)).xyz;\n"
-"        vec3 rgbSW = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(-1.0, +1.0) * texcoordOffset)).xyz;\n"
-"        vec3 rgbSE = vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy + (vec2(+1.0, +1.0) * texcoordOffset)).xyz;\n"
-"        vec3 rgbM =  vec3(1,1,1);//texture2D(textureSampler, vertTexcoord.xy).xyz;\n"
-"\n"
-"        vec3 luma = vec3(0.299, 0.587, 0.114);\n"
-"        float lumaNW = dot(rgbNW, luma);\n"
-"        float lumaNE = dot(rgbNE, luma);\n"
-"        float lumaSW = dot(rgbSW, luma);\n"
-"        float lumaSE = dot(rgbSE, luma);\n"
-"        float lumaM = dot( rgbM, luma);\n"
-"\n"
-"        float lumaMin = min(lumaM, min(min(lumaNW, lumaNE), min(lumaSW, lumaSE)));\n"
-"        float lumaMax = max(lumaM, max(max(lumaNW, lumaNE), max(lumaSW, lumaSE)));\n"
-"\n"
-"        vec2 dir;\n"
-"        dir.x = -((lumaNW + lumaNE) - (lumaSW + lumaSE));\n"
-"        dir.y = ((lumaNW + lumaSW) - (lumaNE + lumaSE));\n"
-"\n"
-"        float dirReduce = max((lumaNW + lumaNE + lumaSW + lumaSE) * (0.25 * FXAA_REDUCE_MUL), FXAA_REDUCE_MIN);\n"
-"\n"
-"        float rcpDirMin = 1.0/(min(abs(dir.x), abs(dir.y)) + dirReduce);\n"
-"\n"
-"        dir = min(vec2(FXAA_SPAN_MAX, FXAA_SPAN_MAX),\n"
-"        max(vec2(-FXAA_SPAN_MAX, -FXAA_SPAN_MAX), dir * rcpDirMin)) * texcoordOffset;\n"
-"\n"
-"        //vec3 rgbA = (1.0/2.0) * (\n"
-"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (1.0/3.0 - 0.5)).xyz +\n"
-"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (2.0/3.0 - 0.5)).xyz);\n"
-"        //vec3 rgbB = rgbA * (1.0/2.0) + (1.0/4.0) * (\n"
-"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (0.0/3.0 - 0.5)).xyz +\n"
-"        //    texture2D(textureSampler, vertTexcoord.xy + dir * (3.0/3.0 - 0.5)).xyz);\n"
-"        vec3 rgbA = (1.0/2.0) * vec3(1,1,1);\n"
-"        vec3 rgbB = (1.0/2.0) + (1.0/4.0) * vec3(1,1,1);\n"
-"        float lumaB = dot(rgbB, luma);\n"
-"\n"
-"        gl_FragColor.xyz= ((lumaB < lumaMin) || (lumaB > lumaMax)) ? rgbA : rgbB;\n"
-"        //gl_FragColor.a = 1.0;\n"
-"\n"
-"        gl_FragColor *= vertColor;\n"
-"    }\n"
-};
-*/
-
-class LightPosCallback : public osg::Uniform::Callback
-{
-public:
-    virtual void operator()( osg::Uniform* uniform, osg::NodeVisitor* nv )
-    {
-        const osg::FrameStamp* fs = nv->getFrameStamp();
-        if ( !fs ) return;
-        float angle = osg::inDegrees( (float)fs->getFrameNumber() );
-        uniform->set( osg::Vec3(20.0f * cosf(angle), 20.0f * sinf(angle), 1.0f) );
-    }
 };
 
 
@@ -184,9 +92,9 @@ ViewerWidget::ViewerWidget():
 
 
         // create sunlight
-        //setLightingMode( osg::View::SKY_LIGHT );
-        //getLight()->setPosition(osg::Vec4(1000,2000,3000,0));
-        //getLight()->setDirection(osg::Vec3(-1,-2,-3));
+        setLightingMode( osg::View::SKY_LIGHT );
+        getLight()->setPosition(osg::Vec4(1000,2000,3000,0));
+        getLight()->setDirection(osg::Vec3(-1,-2,-3));
         //getLight()->setAmbient(osg::Vec4( 0.6,0.6,0.6,1 ));
         //getLight()->setDiffuse(osg::Vec4( 0.6,0.6,0.6,1 ));
         //getLight()->setSpecular(osg::Vec4( 0.9,0.9,0.9,1 ));
@@ -218,23 +126,89 @@ ViewerWidget::ViewerWidget():
         ss->setMode(GL_BLEND, osg::StateAttribute::ON);
     }
 
-    // per pixel lighting
+
+    // SSAO
     if(0)
     {
-        osg::ref_ptr<osg::Program> program = new osg::Program;
-        program->addShader( new osg::Shader(osg::Shader::VERTEX, vertSource) );
-        program->addShader( new osg::Shader(osg::Shader::FRAGMENT, fragSource) );
         osg::StateSet* stateset = _root->getOrCreateStateSet();
-        stateset->setAttributeAndModes( program.get() );
-        stateset->addUniform( new osg::Uniform("lightDiffuse", osg::Vec4(1.0f, 1.0f, 1.0f, 1.0f)) );
-        stateset->addUniform( new osg::Uniform("lightSpecular", osg::Vec4(0.1f, 0.1f, 0.1f, 1.0f)) );
-        stateset->addUniform( new osg::Uniform("shininess", 64.f) );
-        //getLight()->setAmbient(osg::Vec4( 1,1,1,1 ));
+        //osg::ref_ptr<osg::Program> program = new osg::Program;
+        //program->addShader( new osg::Shader(osg::Shader::VERTEX, vertSourceSSAO) );
+        //program->addShader( new osg::Shader(osg::Shader::FRAGMENT, fragSourceSSAO) );
+        //stateset->setAttributeAndModes( program.get() );
+        stateset->addUniform( new osg::Uniform("m_SubPixelShift", .5f ) );
+        stateset->addUniform( new osg::Uniform("m_SpanMax", 5.f ) );
+        stateset->addUniform( new osg::Uniform("m_ReduceMul", 1.f ) );
+        stateset->addUniform( new osg::Uniform("g_Resolution", osg::Vec2(WINDOW_WIDTH, WINDOW_HEIGHT)) );
+        osg::Texture2D* texture = new osg::Texture2D();
+        texture->setTextureSize(WINDOW_WIDTH,WINDOW_HEIGHT);
 
-        osg::ref_ptr<osg::Uniform> lightPos = new osg::Uniform( "lightPosition", osg::Vec3(10000,20000,3000) );
-        stateset->addUniform( lightPos.get() );
+        texture->setInternalFormat(GL_RGBA);
+
+        texture->setWrap(osg::Texture2D::WRAP_S,osg::Texture2D::CLAMP_TO_EDGE);
+        texture->setWrap(osg::Texture2D::WRAP_T,osg::Texture2D::CLAMP_TO_EDGE);
+        texture->setFilter(osg::Texture2D::MIN_FILTER,osg::Texture2D::LINEAR);
+        texture->setFilter(osg::Texture2D::MAG_FILTER,osg::Texture2D::LINEAR);
+
+        osg::Camera* camera = new osg::Camera;
+        camera->addChild( _root.get() );
+        osg::Group * newRoot = new osg::Group;
+        newRoot->addChild( camera );
+        setSceneData( newRoot );
+        camera->setRenderOrder(osg::Camera::PRE_RENDER);
+        camera->setRenderTargetImplementation(osg::Camera::FRAME_BUFFER_OBJECT);
+        //camera->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
+        camera->attach(osg::Camera::COLOR_BUFFER, texture );
+        camera->setClearMask(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+        //camera->setProjectionMatrixAsOrtho2D(0, 0, WINDOW_HEIGHT, WINDOW_WIDTH);
+        //setCameraManipulator( new osgGA::OrbitManipulator );
+
+        stateset->addUniform( new osg::Uniform("m_Texture", texture ) );
+
+        // original image view
+        if(1)
+        {
+
+            //osg::Texture2D* tex = new osg::Texture2D;
+
+            osg::Geode* geode = new osg::Geode();
+            osg::Geometry* geom = new osg::Geometry();
+            geode->addDrawable(geom); 
+
+            osg::Vec3Array* vtx = new osg::Vec3Array;
+            vtx->push_back( osg::Vec3(0, 0, 0) ); // front left 
+            vtx->push_back( osg::Vec3(WINDOW_WIDTH, 0, 0) ); // front right 
+            vtx->push_back( osg::Vec3(WINDOW_WIDTH, WINDOW_HEIGHT, 0) ); // back right 
+            vtx->push_back( osg::Vec3( 0,WINDOW_HEIGHT, 0) ); // back left 
+            geom->setVertexArray( vtx );
+
+            osg::DrawElementsUInt* quads = new osg::DrawElementsUInt(osg::PrimitiveSet::QUADS, 0);
+            quads->push_back(0);
+            quads->push_back(1);
+            quads->push_back(2);
+            quads->push_back(3);
+            geom->addPrimitiveSet(quads);
+
+            osg::Vec2Array* texcoords = new osg::Vec2Array(5);
+            (*texcoords)[0].set(0.f,0.f); // tex coord for vertex 0 
+            (*texcoords)[1].set(1.f,0.f); // tex coord for vertex 1 
+            (*texcoords)[2].set(1.f,1.f); // tex coord for vertex 1 
+            (*texcoords)[3].set(0.f,1.f); // tex coord for vertex 1 
+            geom->setTexCoordArray(0,texcoords);
+
+            geode->getOrCreateStateSet()->setTextureAttributeAndModes(0,texture,osg::StateAttribute::ON);
+            osg::Camera* normalCamera = new osg::Camera();
+            normalCamera->setClearColor(osg::Vec4(0.4f,0.4f,0.4f,1.0f));
+            normalCamera->setClearMask(GL_COLOR_BUFFER_BIT|GL_DEPTH_BUFFER_BIT);
+            normalCamera->setViewport(0,0,WINDOW_WIDTH,WINDOW_HEIGHT);
+            normalCamera->setProjectionMatrixAsOrtho2D(0,WINDOW_HEIGHT,0,WINDOW_HEIGHT);
+            normalCamera->setReferenceFrame(osg::Transform::ABSOLUTE_RF);
+            normalCamera->setViewMatrix(osg::Matrix::identity());
+            normalCamera->setComputeNearFarMode(osg::CullSettings::DO_NOT_COMPUTE_NEAR_FAR);
+            normalCamera->addChild(geode);
+            //textureGroup->addChild( normalCamera );
+            newRoot->addChild( normalCamera );
+        }
     }
-
     realize();
 }
 

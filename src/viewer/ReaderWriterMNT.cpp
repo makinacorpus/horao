@@ -157,16 +157,13 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
 
         assert( pixelPerMetreX > 0 && pixelPerMetreY > 0 );
 
-        // compute the position of the tile
-        int x= std::floor(( xmin - originX ) * pixelPerMetreX) ;
-        int y= std::floor(( originY - ymax ) * pixelPerMetreY) ;
-        int w= std::ceil(( xmax - xmin ) * pixelPerMetreX) ;
-        int h= std::ceil(( ymax - ymin ) * pixelPerMetreY) ;
-
         const int Lx = std::max( 1, int(meshSize * pixelPerMetreX) ) ;
         const int Ly = std::max( 1, int(meshSize * pixelPerMetreY) ) ;
-        w = w / Lx;
-        h = h / Ly;
+        // compute the position of the tile
+        int x= ( xmin - originX ) * pixelPerMetreX ;
+        int y= ( originY - ymax ) * pixelPerMetreY ;
+        int w= ( xmax - xmin ) * pixelPerMetreX / Lx ;
+        int h= ( ymax - ymin ) * pixelPerMetreY / Ly;
 
         // resize to fit data (avoid out of bound)
         if ( y < 0 ){
@@ -211,8 +208,8 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         osg::ref_ptr<osg::HeightField> hf( new osg::HeightField() );
 
         hf->allocate( w, h );
-        hf->setXInterval( Lx / pixelPerMetreX );
-        hf->setYInterval( Ly / pixelPerMetreY );
+        hf->setXInterval( (xmax-xmin)/(w-1) );
+        hf->setYInterval( (ymax-ymin)/(h-1) );
         hf->setOrigin( osg::Vec3(xmin, ymin, 0) - origin );
 
         GDALRasterBand * band = raster->GetRasterBand( 1 );
@@ -245,7 +242,6 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
                 const float z = float( (SRCVAL(blockData, dType, i*w+j) * dataScale)  + dataOffset );
                 hf->setHeight( j, h-1-i, z );
                 zMax = std::max( z, zMax );
-
             }
         }
         DEBUG_OUT << "zMax=" << zMax << "\n";

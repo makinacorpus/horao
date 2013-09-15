@@ -2,6 +2,7 @@
 #define STACK3D_VIEWER_VIEWERWIDGET_H
 
 #include <osgViewer/Viewer>
+#include <osgDB/WriteFile>
 #include <osgViewer/ViewerEventHandlers>
 
 #include <queue>
@@ -19,6 +20,11 @@ struct ViewerWidget: osgViewer::Viewer
     bool setStateSet( const std::string& nodeId, osg::StateSet * ) volatile;
     bool setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile;
     bool lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile;
+    bool writeFile( const std::string & filename) volatile {
+        ViewerWidget * that = const_cast< ViewerWidget * >(this);
+        OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
+        return osgDB::writeNodeFile( *that->_root, filename );
+    }
 
 
 private:

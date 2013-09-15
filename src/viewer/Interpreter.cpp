@@ -89,6 +89,7 @@ void Interpreter::run()
         COMMAND(addPlane)
         COMMAND(lookAt)
         COMMAND(addSky)
+        COMMAND(writeFile)
         else{
             ERROR << "unknown command '" << cmd << "'.";
             std::cout << "<error msg=\"" << escapeXMLString(Log::instance().str()) << "\"/>\n";
@@ -105,6 +106,13 @@ const std::string intToString( int i )
     std::stringstream s;
     s << i;
     return s.str();
+}
+
+bool Interpreter::writeFile( const AttributeMap & am )
+{
+
+    if ( am.value("file").empty() ) return false;
+    return _viewer->writeFile( am.value("file") );
 }
 
 bool Interpreter::lookAt( const AttributeMap & am )

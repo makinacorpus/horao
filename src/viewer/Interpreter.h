@@ -70,6 +70,7 @@ struct Interpreter: public OpenThreads::Thread
     bool addPlane( const AttributeMap & );
     bool addSky( const AttributeMap & );
     bool lookAt( const AttributeMap & );
+    bool writeFile( const AttributeMap & );
 
 private:
 
