@@ -1,0 +1,8 @@
+loadVectorPostgis \
+origin="1888343.937500 5139573.500000 10.000000" \
+query="SELECT gid,  ST_Extrude(geom, 0, 0, 50) as geom FROM cadbatiment LIMIT 20"  \
+conn_info="user='vmo' dbname='lyon' " \
+extent="1749802.500000 4989381.500000,2026885.375000 5289765.500000"  \
+geocolumn="geom" id="test"
+
+

@@ -92,9 +92,9 @@ ViewerWidget::ViewerWidget():
 
 
         // create sunlight
-        setLightingMode( osg::View::SKY_LIGHT );
-        getLight()->setPosition(osg::Vec4(1000,2000,3000,0));
-        getLight()->setDirection(osg::Vec3(-1,-2,-3));
+        //setLightingMode( osg::View::SKY_LIGHT );
+        //getLight()->setPosition(osg::Vec4(1000,2000,3000,0));
+        //getLight()->setDirection(osg::Vec3(-1,-2,-3));
         //getLight()->setAmbient(osg::Vec4( 0.6,0.6,0.6,1 ));
         //getLight()->setDiffuse(osg::Vec4( 0.6,0.6,0.6,1 ));
         //getLight()->setSpecular(osg::Vec4( 0.9,0.9,0.9,1 ));
