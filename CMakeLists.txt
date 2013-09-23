@@ -34,6 +34,7 @@ include_directories( SYSTEM
     ${OPENSCENEGRAPH_INCLUDE_DIRS} 
     #${LIBXML2_INCLUDE_DIR} 
     ${PostgreSQL_INCLUDE_DIR}
+    ${GDAL_INCLUDE_DIR}
     ${CMAKE_CURRENT_LIST_DIR}/src
 )
 

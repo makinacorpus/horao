@@ -12,5 +12,6 @@ int main( int argc, char** argv )
     const int ret = viewer->run();
     // force termination of interpreter thread, if still running
     interpreter.cancel();
+    interpreter.join();
     return ret;
 }
