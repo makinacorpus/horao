@@ -43,7 +43,7 @@ SIMPLEVIEWER_BIN = qset.value( "simpleviewer_path", "simpleViewerd" )
 DEM_VIEWER_DRAPING = qset.value( "dem_viewer_draping", True )
 
 # distance, in meters, between each vector layer
-Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", 0 )
+Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", .5 )
 # distance, in meters on top of DEM layer
 Z_DEM_FIGHT_GAP = qset.value( "z_dem_fight", 1.5 )
 # tile size

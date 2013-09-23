@@ -20,12 +20,6 @@ extern "C" {
 #define CALLBACK
 #endif
 
-inline
-void errorreporter(const char* fmt, va_list ap)
-{
-    va_start(ap, fmt);
-    ERROR << va_arg(ap, const char *);
-}
 
 namespace Stack3d {
 namespace Viewer {
@@ -33,11 +27,6 @@ namespace Viewer {
 //utility class for RAII of LWGEOM
 struct Lwgeom
 {
-    static void initialize()
-    {
-        lwgeom_set_handlers(NULL, NULL, NULL, errorreporter, NULL);
-    }
-
     struct WKT {};
     struct WKB {};
     Lwgeom( const char * wkt, WKT )
@@ -74,8 +63,6 @@ struct TriangleMesh
         : _layerToWord(layerToWord)
     {}
 
-    void push_back( const LWTRIANGLE * );
-    void push_back( const LWPOLY * );
     void push_back( const LWGEOM * );
 
     void addBar( const osg::Vec3 & center, float width, float depth, float height );
@@ -95,6 +82,9 @@ private:
     void push_back( const MULTITYPE * );
 
     friend void CALLBACK tessVertexCB(const GLvoid *vtx, void *data);
+
+    void push_back( const LWTRIANGLE * );
+    void push_back( const LWPOLY * );
 };
 
 }

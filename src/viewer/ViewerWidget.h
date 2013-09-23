@@ -13,19 +13,14 @@ namespace Viewer {
 struct ViewerWidget: osgViewer::Viewer
 {
     ViewerWidget();
-    bool addNode( const std::string& nodeId, osg::Node * ) volatile;
-    bool removeNode( const std::string& nodeId) volatile;
-    bool setVisible( const std::string& nodeId, bool visible) volatile;
+    void addNode( const std::string& nodeId, osg::Node * ) volatile;
+    void removeNode( const std::string& nodeId) volatile;
+    void setVisible( const std::string& nodeId, bool visible) volatile;
     void setDone( bool flag ) volatile;
-    bool setStateSet( const std::string& nodeId, osg::StateSet * ) volatile;
-    bool setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile;
-    bool lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile;
-    bool writeFile( const std::string & filename) volatile {
-        ViewerWidget * that = const_cast< ViewerWidget * >(this);
-        OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-        return osgDB::writeNodeFile( *that->_root, filename );
-    }
-
+    void setStateSet( const std::string& nodeId, osg::StateSet * ) volatile;
+    void setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile;
+    void lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile;
+    void writeFile( const std::string & filename) volatile;
 
 private:
 

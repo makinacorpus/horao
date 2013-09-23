@@ -18,12 +18,41 @@
  */
 
 #include "PostGisUtils.h"
+#include "Log.h"
 
 #include <osgUtil/Tessellator>
 
 
 namespace Stack3d {
 namespace Viewer {
+
+inline
+void errorreporter(const char* fmt, va_list ap)
+{
+    DEBUG_TRACE << "here";
+	char *msg = NULL;
+
+	if (!lw_vasprintf (&msg, fmt, ap))
+	{
+        DEBUG_TRACE << "there";
+		va_end (ap);
+		return;
+	}
+    DEBUG_TRACE << "not there";
+    
+    throw Exception(msg);
+    free(msg);
+}
+
+struct LwgeomInitialiser 
+{
+    LwgeomInitialiser(){
+        lwgeom_set_handlers(NULL, NULL, NULL, errorreporter, NULL);
+        DEBUG_TRACE << "initialized error handler";
+    }
+} lwgeomInitialiser; // dummy class to ensure initilization is done
+
+
 
 // we do that orselves since an osg::Box for each feature is really slow
 void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, float height )
@@ -222,7 +251,7 @@ void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )
 }
 
 // nop callback
-void CALLBACK noStripCallback(GLboolean flag)
+void CALLBACK noStripCB(GLboolean flag)
 {
     //assert( flag );
     (void)flag;
@@ -240,10 +269,11 @@ void CALLBACK tessEndCB(GLenum which)
     (void)which;
 }
 
-void CALLBACK tessErrorCB(GLenum errorCode)
+void CALLBACK tessErrorCB(GLenum /*errorCode*/)
 {
-    const GLubyte * errorStr = gluErrorString(errorCode);
-    ERROR << errorStr;
+    //const GLubyte * errorStr = gluErrorString(errorCode);
+    //throw Exception(reinterpret_cast<const char *>(errorStr));
+    //ERROR << errorStr << "\n";
 }
 
 void CALLBACK tessVertexCB(const GLvoid *vtx, void *data)
@@ -255,6 +285,11 @@ void CALLBACK tessVertexCB(const GLvoid *vtx, void *data)
     that->_vtx.push_back( osg::Vec3( p[0], p[1], p[2] ) );
 }
 
+void CALLBACK tessCombineCB(GLdouble [3]/*coords[3]*/, void * /*vertex_data[4]*/, GLfloat /*weight[4]*/, void ** /*outData*/)
+{
+    //throw Exception("polygon contours intersect");
+    //ERROR << "polygon contours intersect\n";
+}
 
 // for RAII off GLUtesselator
 struct Tessellator
@@ -267,7 +302,8 @@ struct Tessellator
         gluTessCallback(_tess, GLU_TESS_END, (void (*)(void))tessEndCB);
         gluTessCallback(_tess, GLU_TESS_ERROR, (void (*)(void))tessErrorCB);
         gluTessCallback(_tess, GLU_TESS_VERTEX_DATA, (void (*)())tessVertexCB);
-	    gluTessCallback(_tess, GLU_TESS_EDGE_FLAG,  (void (*)())noStripCallback);
+	    gluTessCallback(_tess, GLU_TESS_EDGE_FLAG,  (void (*)())noStripCB);
+	    //gluTessCallback(_tess, GLU_TESS_COMBINE,  (void (*)())tessCombineCB);
     }
     ~Tessellator(){
         gluDeleteTess(_tess);
@@ -285,7 +321,7 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
 
     size_t totalNumVtx = 0;
     for ( int r = 0; r < numRings; r++) totalNumVtx += lwpoly->rings[r]->npoints;
-    std::vector< GLdouble > coord( totalNumVtx*3 );
+    std::vector< GLdouble > coord( totalNumVtx*3 ); // may not be filled
 
     const size_t nTriangles = _tri.size();
 
@@ -296,14 +332,17 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
     for ( int r = 0; r < numRings; r++) {
         gluTessBeginContour(tesselator._tess);                      // outer quad
         const int ringSize = lwpoly->rings[r]->npoints;
+        osg::Vec3 prevPos;
         for( int v = 0; v < ringSize - 1; v++ ) {
             const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v );
             const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
+            //if ( v && p == prevPos ) continue; // will not fill coord, but we don't care
             coord[currIdx + 0] = p.x();
             coord[currIdx + 1] = p.y();
             coord[currIdx + 2] = p.z();
             gluTessVertex(tesselator._tess, &(coord[currIdx]), &(coord[currIdx]));
             currIdx+=3;
+            prevPos = p;
         }
         gluTessEndContour(tesselator._tess);                      // outer quad
     }
@@ -352,7 +391,8 @@ void TriangleMesh::push_back( const MULTITYPE * lwmulti )
 
 void TriangleMesh::push_back( const LWGEOM * lwgeom )
 {
-    osg::ref_ptr<osg::Geometry> geom;
+    assert( lwgeom );
+    if ( lwgeom_is_empty( lwgeom ) ) return;
     //! @todo actually create the geometry
     switch ( lwgeom->type )
     {

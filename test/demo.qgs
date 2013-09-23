@@ -103,7 +103,7 @@
         </maplayer>
         <maplayer minimumScale="5000" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="1" scaleBasedLabelVisibilityFlag="0">
             <id>cadbatiment20130905154830022</id>
-            <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."cadbatiment" (lod1) sql=</datasource>
+            <datasource>dbname='lyon' port=5432 user='vmo' sslmode=disable key='gid' table="public"."cadbatiment" (lod1) sql=</datasource>
             <title></title>
             <abstract></abstract>
             <keywordList>
@@ -305,7 +305,7 @@
         </maplayer>
         <maplayer minimumScale="0" maximumScale="5000" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="1" scaleBasedLabelVisibilityFlag="0">
             <id>cadbatiment20130905155517703</id>
-            <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."cadbatiment" (lod2) sql=</datasource>
+            <datasource>dbname='lyon' port=5432 user='vmo' sslmode=disable key='gid' table="public"."cadbatiment" (lod2) sql=</datasource>
             <title></title>
             <abstract></abstract>
             <keywordList>
@@ -507,7 +507,7 @@
         </maplayer>
         <maplayer minimumScale="-4.65661e-10" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="0" scaleBasedLabelVisibilityFlag="0">
             <id>lands20130905103945803</id>
-            <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."lands" (geom) sql=</datasource>
+            <datasource>dbname='lyon' port=5432 user='vmo' sslmode=disable key='gid' table="public"."lands" (geom) sql=</datasource>
             <title></title>
             <abstract></abstract>
             <keywordList>
@@ -707,7 +707,7 @@
         </maplayer>
         <maplayer minimumScale="-4.65661e-10" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Polygon" type="vector" hasScaleBasedVisibilityFlag="0" scaleBasedLabelVisibilityFlag="0">
             <id>plandeau20130905100338732</id>
-            <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="public"."plandeau" (geom) sql=</datasource>
+            <datasource>dbname='lyon' port=5432 user='vmo' sslmode=disable key='gid' table="public"."plandeau" (geom) sql=</datasource>
             <title></title>
             <abstract></abstract>
             <keywordList>
@@ -905,7 +905,7 @@
         </maplayer>
         <maplayer minimumScale="0" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Point" type="vector" hasScaleBasedVisibilityFlag="0" scaleBasedLabelVisibilityFlag="0">
             <id>velov20130911094704372</id>
-            <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='tid' table="public"."velov" (pos) sql=</datasource>
+            <datasource>dbname='lyon' port=5432 user='vmo' sslmode=disable key='tid' table="public"."velov" (pos) sql=</datasource>
             <title></title>
             <abstract></abstract>
             <keywordList>
@@ -1115,7 +1115,7 @@
         </maplayer>
         <maplayer minimumScale="0" maximumScale="1e+08" minLabelScale="0" maxLabelScale="1e+08" geometry="Point" type="vector" hasScaleBasedVisibilityFlag="0" scaleBasedLabelVisibilityFlag="0">
             <id>velov_c20130911094845937</id>
-            <datasource>dbname='lyon' port=5432 user='hme' sslmode=disable key='gid' table="(select gid, st_translate(pos,0,0,height) as pos, width, 100-height as height from velov /**WHERE TILE &amp;&amp; pos*/
+            <datasource>dbname='lyon' port=5432 user='vmo' sslmode=disable key='gid' table="(select gid, st_translate(pos,0,0,height) as pos, width, 100-height as height from velov /**WHERE TILE &amp;&amp; pos*/
 )" (pos) sql=</datasource>
             <title></title>
             <abstract></abstract>

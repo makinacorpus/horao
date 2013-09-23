@@ -4,6 +4,7 @@
 #include "SkyBox.h"
 
 #include <osgDB/ReadFile>
+#include <osgDB/FileUtils>
 #include <osg/Material>
 #include <osg/Geode>
 #include <osg/ShapeDrawable>
@@ -28,9 +29,9 @@ void Interpreter::run()
 {
     std::ifstream ifs( _inputFile.c_str() );
     if ( !_inputFile.empty() && !ifs ){
-        ERROR << "cannot open '" << _inputFile << "'";
-        std::cout << "<error msg=\""<< escapeXMLString(Log::instance().str()) << "\"/>\n"; \
-        Log::instance().str("");\
+        const std::string msg = "cannot open '" + _inputFile + "'";
+        ERROR << msg << "\n";
+        std::cout << "<error msg=\""<< escapeXMLString(msg) << "\"/>\n";
     }
     std::string line;
     std::string physicalLine;
@@ -66,16 +67,16 @@ void Interpreter::run()
         if ( "help" == cmd ){
             help();
         }
-#define COMMAND( CMD )                                                  \
-        else if ( #CMD == cmd  ){                                       \
-            if ( !CMD( am ) ){                                          \
-                ERROR << "cannot " << #CMD;                             \
-                std::cout << "<error msg=\""<< escapeXMLString(Log::instance().str()) << "\"/>\n"; \
-            }                                                           \
-            else {                                                      \
-                std::cout << "<ok/>\n";                                 \
-            }                                                           \
-            Log::instance().str("");                                    \
+#define COMMAND( CMD )\
+        else if ( #CMD == cmd  ){\
+            try{\
+                CMD( am );\
+                std::cout << "<ok/>\n";\
+            }\
+            catch (std::exception & e){\
+                ERROR << e.what() << "\n";\
+                std::cout << "<error msg=\""<< escapeXMLString(e.what()) << "\"/>\n";\
+            }\
         }
         COMMAND(loadVectorPostgis)
         COMMAND(loadRasterGDAL)
@@ -91,9 +92,9 @@ void Interpreter::run()
         COMMAND(addSky)
         COMMAND(writeFile)
         else{
-            ERROR << "unknown command '" << cmd << "'.";
-            std::cout << "<error msg=\"" << escapeXMLString(Log::instance().str()) << "\"/>\n";
-            Log::instance().str("");
+            const std::string msg = "unknown command '" + cmd + "'";
+            ERROR << msg << "\n";
+            std::cout << "<error msg=\"" << escapeXMLString(msg) << "\"/>\n";
         }
 #undef COMMAND
     }
@@ -108,33 +109,27 @@ const std::string intToString( int i )
     return s.str();
 }
 
-bool Interpreter::writeFile( const AttributeMap & am )
+void Interpreter::writeFile( const AttributeMap & am )
 {
-
-    if ( am.value("file").empty() ) return false;
-    return _viewer->writeFile( am.value("file") );
+    _viewer->writeFile( am.value("file") );
 }
 
-bool Interpreter::lookAt( const AttributeMap & am )
+void Interpreter::lookAt( const AttributeMap & am )
 {
-    if ( ( am.optionalValue("extent").empty() || am.optionalValue("origin").empty() )  && ((am.optionalValue("eye").empty() || am.optionalValue("center").empty() || am.optionalValue("up").empty()) ) ) return false;
-
     if ( am.optionalValue("extent").empty() ){
         osg::Vec3d eye, center, up;
         if ( !( std::stringstream( am.value("eye") ) >> eye.x() >> eye.y() >> eye.z() ) 
            ||!( std::stringstream( am.value("center") ) >> center.x() >> center.y() >> center.z() )
            ||!( std::stringstream( am.value("up") ) >> up.x() >> up.y() >> up.z() )){
-            ERROR << "cannot parse eye, center or up";
-            return false;
+            throw Exception("cannot parse eye, center or up");
         }
 
-        return _viewer->setLookAt( eye, center, up );
+        _viewer->setLookAt( eye, center, up );
     }
     else {
         osg::Vec3d origin;
         if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
-            ERROR << "cannot parse origin";
-            return false;
+            throw Exception("cannot parse origin");
         }
 
         float xmin, ymin, xmax, ymax;
@@ -143,104 +138,89 @@ bool Interpreter::lookAt( const AttributeMap & am )
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            ERROR << "cannot parse extent";
-            return false;
+            throw Exception("cannot parse extent");
         }
-        return _viewer->lookAtExtent( xmin - origin.x(), 
-                                      ymin - origin.y(), 
-                                      xmax - origin.x(), 
-                                      ymax - origin.y());
+        _viewer->lookAtExtent( xmin - origin.x(), 
+                               ymin - origin.y(), 
+                               xmax - origin.x(), 
+                               ymax - origin.y());
     }
 }
 
-bool Interpreter::loadFile( const AttributeMap & am )
+void Interpreter::loadFile( const AttributeMap & am )
 {
-    if ( am.value("id").empty() || am.value("file").empty() || am.value("origin").empty()  ) return false;
-
     osg::Vec3d origin;
     if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
-        ERROR << "cannot parse origin";
-        return false;
+        throw Exception("cannot parse origin");
     }
 
     osg::ref_ptr< osg::Node > node = osgDB::readNodeFile( am.value("file") );
 
-    if (!node.get()) return false;
+    if (!node.get()) throw Exception("cannot create geometry from '" + am.value("file") + "'");
 
     osg::ref_ptr< osg::PositionAttitudeTransform > tr = new osg::PositionAttitudeTransform;
     tr->setPosition( -origin );
     tr->addChild( node.get() );
 
-    return _viewer->addNode( am.value("id"), tr.get() );
+    _viewer->addNode( am.value("id"), tr.get() );
 
 }
 
-bool Interpreter::addSky( const AttributeMap & am )
+void Interpreter::addSky( const AttributeMap & am )
 {
-    if ( am.value("id").empty() || am.value("image").empty() || am.value("radius").empty() ) return false;
-
     double radius;
     if (!(std::stringstream( am.value("radius") ) >> radius ) ){
-        ERROR << "cannot parse radius=\"" << am.value("radius") << "\"";
-        return false;
+        throw Exception("cannot parse radius=\"" + am.value("radius") + "\"");
     }
 
     osg::ref_ptr<osg::Geode> geode = new osg::Geode;
     geode->addDrawable( new osg::ShapeDrawable( new osg::Sphere(osg::Vec3(), radius)) );
- 
-    osg::Image* posX = osgDB::readImageFile( "posX_"+am.value("image"));
-    osg::Image* negX = osgDB::readImageFile( "negX_"+am.value("image"));
-    osg::Image* posY = osgDB::readImageFile( "posY_"+am.value("image"));
-    osg::Image* negY = osgDB::readImageFile( "negY_"+am.value("image"));
-    osg::Image* posZ = osgDB::readImageFile( "posZ_"+am.value("image"));
-    osg::Image* negZ = osgDB::readImageFile( "negZ_"+am.value("image"));
-    if ( !( posX && negX && posY && negY && posZ && negZ ) ){
-        ERROR << "cannot find image=\"" << am.value("image") << "\"";
-        return false;
-    }
+
+#define OPEN_IMAGE_OR_THROW( prefix )\
+    osg::Image* prefix = osgDB::readImageFile( std::string(#prefix) + "_" + am.value("image"));\
+    if (!prefix) throw Exception("cannot reade image file '" + std::string(#prefix) + "_" + am.value("image") + "'");
+
+    OPEN_IMAGE_OR_THROW(posX)
+    OPEN_IMAGE_OR_THROW(negX)
+    OPEN_IMAGE_OR_THROW(posY)
+    OPEN_IMAGE_OR_THROW(negY)
+    OPEN_IMAGE_OR_THROW(posZ)
+    OPEN_IMAGE_OR_THROW(negZ)
+#undef OPEN_IMAGE_OR_THROW
     
     osg::ref_ptr<SkyBox> skybox = new SkyBox;
     skybox->getOrCreateStateSet()->setTextureAttributeAndModes( 0, new osg::TexGen );
     skybox->setEnvironmentMap( 0, posX, negX, posY, negY, posZ, negZ );
     skybox->addChild( geode.get() );
 
-    return _viewer->addNode( am.value("id"), skybox.get() );
+    _viewer->addNode( am.value("id"), skybox.get() );
 }
 
-bool Interpreter::addPlane( const AttributeMap & am )
+void Interpreter::addPlane( const AttributeMap & am )
 {
-    if ( am.value("id").empty() || am.value("extent").empty() || am.value("origin").empty() ) return false;
-
     double xmin, ymin, xmax, ymax;
     std::stringstream ext( am.value("extent") );
     std::string l;
     if ( !(ext >> xmin >> ymin)
         || !std::getline(ext, l, ',')
         || !(ext >> xmax >> ymax) ) {
-        ERROR << "cannot parse extent";
-        return false;
+        throw Exception("cannot parse extent");
     }
 
     osg::Vec3d origin;
     if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
-        ERROR << "cannot parse origin";
-        return false;
+        throw Exception("cannot parse origin");
     }
 
-    osg::Box* unitCube = new osg::Box( osg::Vec3(xmin, ymin, 0) + osg::Vec3(xmax-xmin, ymax-ymin, 0)*.5f - origin, xmax-xmin, ymax-ymin, 0);
-    osg::ShapeDrawable* plane = new osg::ShapeDrawable(unitCube);
-    osg::Geode* geode = new osg::Geode();
-    geode->addDrawable( plane );
-    return _viewer->addNode( am.value("id"), geode );
+    osg::ref_ptr<osg::Box> unitCube = new osg::Box( osg::Vec3(xmin, ymin, 0) + osg::Vec3(xmax-xmin, ymax-ymin, 0)*.5f - origin, xmax-xmin, ymax-ymin, 0);
+    osg::ref_ptr<osg::ShapeDrawable> plane = new osg::ShapeDrawable(unitCube.get());
+    osg::ref_ptr<osg::Geode> geode = new osg::Geode();
+    geode->addDrawable( plane.get() );
+    _viewer->addNode( am.value("id"), geode );
 }
 
-bool Interpreter::loadVectorPostgis(const AttributeMap & am )
+void Interpreter::loadVectorPostgis(const AttributeMap & am )
 {
-    if ( am.value("id").empty() 
-      || am.value("conn_info").empty() 
-      || am.value("origin").empty()
-      ) return false;
-
     std::string geocolumn = "geom";
     if ( ! am.optionalValue("geocolumn").empty() ) {
         geocolumn = am.optionalValue("geocolumn");
@@ -248,7 +228,6 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
     // with LOD
     if ( ! am.optionalValue("lod").empty() ){
         std::vector<  double > lodDistance;
-        if ( am.value("extent").empty() ||  am.value("tile_size").empty() ) return false;
         std::stringstream levels(am.optionalValue("lod"));
         std::string l;
         while ( std::getline( levels, l, ' ' ) ){
@@ -256,7 +235,6 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
            const int idx = lodDistance.size()-2;
            if (idx < 0) continue;
            const std::string lodIdx = intToString( idx );
-           if ( am.value("query_"+lodIdx ).empty() ) return false;
         }
         
         float xmin, ymin, xmax, ymax;
@@ -264,20 +242,17 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            ERROR << "cannot parse extent";
-            return false;
+            throw Exception("cannot parse extent");
         }
 
         float tileSize;
         if (!(std::stringstream(am.value("tile_size")) >> tileSize) || tileSize <= 0 ){
-            ERROR << "cannot parse tile_size";
-            return false;
+            throw Exception("cannot parse tile_size");
         }
 
         osg::Vec3 origin(0,0,0);
         if (!(std::stringstream(am.value("origin")) >> origin.x() >> origin.y() ) ){
-            ERROR << "cannot parse origin";
-            return false;
+            throw Exception("cannot parse origin");
         }
 
 
@@ -293,7 +268,6 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                 for (size_t ilod = 0; ilod < lodDistance.size()-1; ilod++){
                     const std::string lodIdx = intToString( ilod );
                     const std::string query = tileQuery( am.value("query_"+lodIdx ), xm, ym, xm+tileSize, ym+tileSize );
-                    if (query.empty()) return false;
                     const std::string pseudoFile = "conn_info=\"" + escapeXMLString(am.value("conn_info"))       + "\" "
                         + "origin=\""    + escapeXMLString(am.value("origin"))          + "\" "
                         + "geocolumn=\"" + geocolumn + "\" "
@@ -309,13 +283,12 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
                 group->addChild( pagedLod.get() );
             }
         }
-        if (!_viewer->addNode( am.value("id"), group.get() )) return false;
+        _viewer->addNode( am.value("id"), group.get() );
 
             
     }
     // without LOD
     else{
-        if ( am.value("query").empty() ) return false;
       const std::string pseudoFile = "conn_info=\""       + escapeXMLString(am.value("conn_info"))       + "\" "
           + "origin=\""          + escapeXMLString(am.value("origin"))          + "\" "
           + "geocolumn=\"" + escapeXMLString(geocolumn) + "\" "
@@ -324,46 +297,38 @@ bool Interpreter::loadVectorPostgis(const AttributeMap & am )
           + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
-            ERROR << "cannot create layer";
-            return false;
+            throw Exception("cannot create layer");
         }
-        if (!_viewer->addNode( am.value("id"), node.get() )) return false;
+        _viewer->addNode( am.value("id"), node.get() );
     }
-
-    return true;
 }
 
-bool Interpreter::loadRasterGDAL(const AttributeMap & )
+void Interpreter::loadRasterGDAL(const AttributeMap & )
 {
-    ERROR << "not implemented";
-    return false;
+    throw Exception("not implemented");
 }
 
-bool Interpreter::loadElevation(const AttributeMap & am)
+void Interpreter::loadElevation(const AttributeMap & am)
 {
-    if ( am.value("id").empty() 
-      || am.value("origin").empty()
-      || am.value("extent").empty()
-      || am.value("file").empty()
-      ) return false;
-
-
     // test if an terain db exist (.ive)
     std::string ive(am.value("file"));
     if ( ive.length() <= 4){
-        ERROR << "file=\""<< ive << "\" filename is too short (missing exetension ?)";
-        return false;
+        throw Exception( "file=\"" + ive + "\" filename is too short (missing extension ?)");
     }
     ive.replace( ive.length() - 4, std::string::npos, ".ive" );
-    AttributeMap amIve( am );
-    amIve["file"] = ive;
-    if ( loadFile(amIve) ) return true;
-    else ERROR << "did not find \"" << ive << "\"";
+    if ( !osgDB::findDataFile(ive).empty() ){
+        AttributeMap amIve( am );
+        amIve["file"] = ive;
+        loadFile(amIve);
+        return;
+    }
+    else {
+        WARNING << "did not find '" << ive << "'\n";
+    }
 
     // with LOD
     if ( ! am.optionalValue("lod").empty() ){
         std::vector<  double > lodDistance;
-        if ( am.value("tile_size").empty() ) return false;
         std::stringstream levels(am.optionalValue("lod"));
         std::string l;
         while ( std::getline( levels, l, ' ' ) ){
@@ -371,7 +336,6 @@ bool Interpreter::loadElevation(const AttributeMap & am)
            const int idx = lodDistance.size()-2;
            if (idx < 0) continue;
            const std::string lodIdx = intToString( idx );
-           if ( am.value("mesh_size_"+lodIdx ).empty() ) return false;
         }
         
         float xmin, ymin, xmax, ymax;
@@ -379,20 +343,17 @@ bool Interpreter::loadElevation(const AttributeMap & am)
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            ERROR << "cannot parse extent";
-            return false;
+            throw Exception("cannot parse extent");
         }
 
         float tileSize;
         if (!(std::stringstream(am.value("tile_size")) >> tileSize) || tileSize <= 0 ){
-            ERROR << "cannot parse tile_size";
-            return false;
+            throw Exception("cannot parse tile_size");
         }
 
         osg::Vec3 origin(0,0,0);
         if (!(std::stringstream(am.value("origin")) >> origin.x() >> origin.y() ) ){
-            ERROR << "cannot parse origin";
-            return false;
+            throw Exception("cannot parse origin");
         }
 
         const size_t numTilesX = (xmax-xmin)/tileSize + 1;
@@ -423,11 +384,10 @@ bool Interpreter::loadElevation(const AttributeMap & am)
                 group->addChild( pagedLod.get() );
             }
         }
-        if (!_viewer->addNode( am.value("id"), group.get() )) return false;
+        _viewer->addNode( am.value("id"), group.get() );
     }
     // without LOD
     else{
-      if ( am.value("mesh_size").empty() ) return false;
         const std::string pseudoFile = 
               "file=\""      + escapeXMLString(am.value("file"))              + "\" "
             + "origin=\""    + escapeXMLString(am.value("origin"))            + "\" "
@@ -435,32 +395,30 @@ bool Interpreter::loadElevation(const AttributeMap & am)
             + "extent=\""    + escapeXMLString(am.value("extent"))            + "\" " + MNT_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
-            ERROR << "cannot create layer";
-            return false;
+            throw Exception("cannot create layer");
         }
-        if (!_viewer->addNode( am.value("id"), node.get() )) return false;
+        _viewer->addNode( am.value("id"), node.get() );
     }
-
-    return true;
 }
 
-bool Interpreter::unloadLayer( const AttributeMap& am )
+void Interpreter::unloadLayer( const AttributeMap& am )
 {
-    return am.value("id").empty() ? false : _viewer->removeNode( am.value("id") );
+    _viewer->removeNode( am.value("id") );
 }
 
-bool Interpreter::showLayer( const AttributeMap& am )
+void Interpreter::showLayer( const AttributeMap& am )
 {
-    return am.value("id").empty() ? false : _viewer->setVisible( am.value("id"), true );
+    _viewer->setVisible( am.value("id"), true );
 }
 
-bool Interpreter::hideLayer( const AttributeMap& am )
+void Interpreter::hideLayer( const AttributeMap& am )
 {
-    return am.value("id").empty() ? false : _viewer->setVisible( am.value("id"), false );
+    _viewer->setVisible( am.value("id"), false );
 }
 
 
 // copied from osgearth
+inline
 const osg::Vec4 htmlColor( const std::string & html )
 {
     std::string t = html;
@@ -487,10 +445,8 @@ const osg::Vec4 htmlColor( const std::string & html )
     return osg::Vec4( w, x, y, z );
 }
 
-
-bool Interpreter::setSymbology(const AttributeMap & am)
+void Interpreter::setSymbology(const AttributeMap & am)
 {
-    if ( am.value("id").empty() ) return false;
     osg::ref_ptr<osg::StateSet> stateset = new osg::StateSet;
 
     osg::ref_ptr<osg::Material> material = new osg::Material;
@@ -507,13 +463,12 @@ bool Interpreter::setSymbology(const AttributeMap & am)
     //stateset->setMode( GL_LIGHTING, osg::StateAttribute::ON );
     stateset->setAttribute(material,osg::StateAttribute::OVERRIDE);
 
-    return _viewer->setStateSet( am.value("id"), stateset.get() );
+    _viewer->setStateSet( am.value("id"), stateset.get() );
 }
 
-bool Interpreter::setFullExtent(const AttributeMap & )
+void Interpreter::setFullExtent(const AttributeMap & )
 {
-    ERROR << "not implemented";
-    return false;
+    throw Exception("not implemented");
 }
 
 

@@ -22,10 +22,8 @@ struct Interpreter: public OpenThreads::Thread
         const std::string value( const std::string & key ) const
         {
             const const_iterator found = find( key );
-            if ( found == end() ) {
-                ERROR << "cannot find attribute '" << key << "'";
-                return "";
-            }
+            if ( found == end() ) throw Exception("cannot find attribute '" + key + "'");
+
             return found->second;
         }
 
@@ -34,7 +32,6 @@ struct Interpreter: public OpenThreads::Thread
             const const_iterator found = find( key );
             return found == end() ? "" : found->second;
         }
-
     };
 
     void run(); // virtual in OpenThreads::Thread
@@ -43,7 +40,7 @@ struct Interpreter: public OpenThreads::Thread
     // Several commands (like <unload name="layerName"/> or <list/>) have been added
     // to allow to interactively modify the map.
     // The first thing to do is to create the map with an <option> section
-    bool help() const {
+    void help() const {
         std::cout 
             << "    <help/>: display this.\n"
             << "    <options>...</options>: create the map (first thing to do).\n"
@@ -54,23 +51,22 @@ struct Interpreter: public OpenThreads::Thread
             << "    <show name=\"layerName\">: show layer.\n"
             << "    <hide name=\"layerName\">: hide layer.\n"
             ;
-        return true;
     }
     //bool list() const;
 
-    bool loadVectorPostgis( const AttributeMap & );
-    bool loadRasterGDAL( const AttributeMap & );
-    bool loadElevation( const AttributeMap & );
-    bool loadFile( const AttributeMap & );
-    bool unloadLayer( const AttributeMap & );
-    bool showLayer(const AttributeMap & am);
-    bool hideLayer(const AttributeMap & am);
-    bool setSymbology( const AttributeMap & );
-    bool setFullExtent( const AttributeMap & );
-    bool addPlane( const AttributeMap & );
-    bool addSky( const AttributeMap & );
-    bool lookAt( const AttributeMap & );
-    bool writeFile( const AttributeMap & );
+    void loadVectorPostgis( const AttributeMap & );
+    void loadRasterGDAL( const AttributeMap & );
+    void loadElevation( const AttributeMap & );
+    void loadFile( const AttributeMap & );
+    void unloadLayer( const AttributeMap & );
+    void showLayer(const AttributeMap & am);
+    void hideLayer(const AttributeMap & am);
+    void setSymbology( const AttributeMap & );
+    void setFullExtent( const AttributeMap & );
+    void addPlane( const AttributeMap & );
+    void addSky( const AttributeMap & );
+    void lookAt( const AttributeMap & );
+    void writeFile( const AttributeMap & );
 
 private:
 
@@ -87,15 +83,16 @@ tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
 { 
     const char * spacialMetaComments[] = {"/**WHERE TILE &&", "/**AND TILE &&"};
 
+    bool foundSpatialMetaComment = false;
     for ( size_t i = 0; i < sizeof(spacialMetaComments)/sizeof(char *); i++ ){
         const size_t where = query.find(spacialMetaComments[i]);
         if ( where != std::string::npos )
         {
+            foundSpatialMetaComment = true;
             query.replace (where, 3, "");
             const size_t end = query.find("*/", where);
             if ( end == std::string::npos ){
-                ERROR << "unended comment in query";
-                return "";
+                throw Exception("unended comment in query");
             }
             query.replace (end, 2, "");
             
@@ -106,6 +103,9 @@ tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
             query.replace( tile, 4, bbox.str().c_str() ); 
         }
     }
+
+    if (!foundSpatialMetaComment) throw ("did not found spatial meta comment in query (necessary for tiling)");
+
     return query;
 }
 

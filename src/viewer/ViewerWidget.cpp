@@ -236,81 +236,72 @@ void ViewerWidget::setDone( bool flag ) volatile
 }
 
 
-bool ViewerWidget::setStateSet( const std::string& nodeId, osg::StateSet * stateset) volatile
+void ViewerWidget::setStateSet( const std::string& nodeId, osg::StateSet * stateset) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
     if ( found == that->_nodeMap.end() ){
-        ERROR << "cannot find node '" << nodeId << "'";
-        return false;
+        throw Exception("cannot find node '" + nodeId + "'");
     }
     found->second->setStateSet( stateset );
-    return true;
 }
 
 
-bool ViewerWidget::addNode( const std::string& nodeId, osg::Node * node ) volatile 
+void ViewerWidget::addNode( const std::string& nodeId, osg::Node * node ) volatile 
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if ( that->_nodeMap.find( nodeId ) != that->_nodeMap.end() ){
-        ERROR << "node '" << nodeId << "' already exists";
-        return false;
+        throw Exception( "node '" + nodeId + "' already exists");
     }
 
     that->_root->addChild( node );
     that->_nodeMap.insert( std::make_pair( nodeId, node ) );
-    return true;
 }
 
-bool ViewerWidget::removeNode(  const std::string& nodeId ) volatile
+void ViewerWidget::removeNode(  const std::string& nodeId ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
     if ( found == that->_nodeMap.end() ){
-        ERROR << "cannot find node '" << nodeId << "'";
-        return false;
+        throw Exception("cannot find node '" + nodeId + "'");
     }
     that->_root->removeChild( found->second.get() );
-    return true;
 }
 
-bool ViewerWidget::setVisible( const std::string& nodeId, bool visible ) volatile
+void ViewerWidget::setVisible( const std::string& nodeId, bool visible ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
     if ( found == that->_nodeMap.end() ){
-        ERROR << "cannot find node '" << nodeId << "'";
-        return false;
+        throw Exception("cannot find node '" + nodeId + "'");
     }
     found->second->setNodeMask(visible ? 0xffffffff : 0x0);
-    return true;
 }
 
-bool ViewerWidget::setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile
+void ViewerWidget::setLookAt( const osg::Vec3 & eye, const osg::Vec3 & center, const osg::Vec3 & up ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     that->getCurrentManipulator()->setHomePosition(eye, center, up); 
     that->getCurrentManipulator()->home(0); 
-    return true;
 }
 
 
-bool ViewerWidget::lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile
+void ViewerWidget::lookAtExtent( double xmin, double ymin, double xmax, double ymax ) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     double fovy, aspectRatio, zNear, zFar;
     if (!that->getCamera()->getProjectionMatrixAsPerspective(fovy, aspectRatio, zNear, zFar) )
-        return false;
+        throw Exception("cannot get projection matrix");
 
     // compute distance from fovy
     const double fovRad = fovy * M_PI / 180;
@@ -322,7 +313,13 @@ bool ViewerWidget::lookAtExtent( double xmin, double ymin, double xmax, double y
 
     that->getCurrentManipulator()->setHomePosition(eye, center, up); 
     that->getCurrentManipulator()->home(0);
-    return true;
+}
+
+void ViewerWidget::writeFile( const std::string & filename) volatile 
+{
+    ViewerWidget * that = const_cast< ViewerWidget * >(this);
+    OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
+    if(!osgDB::writeNodeFile( *that->_root, filename )) throw Exception("cannot write '"+ filename + "'");
 }
 
 }
