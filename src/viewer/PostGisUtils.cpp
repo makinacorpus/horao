@@ -269,11 +269,10 @@ void CALLBACK tessEndCB(GLenum which)
     (void)which;
 }
 
-void CALLBACK tessErrorCB(GLenum /*errorCode*/)
+void CALLBACK tessErrorCB(GLenum errorCode)
 {
-    //const GLubyte * errorStr = gluErrorString(errorCode);
-    //throw Exception(reinterpret_cast<const char *>(errorStr));
-    //ERROR << errorStr << "\n";
+    const GLubyte * errorStr = gluErrorString(errorCode);
+    throw Exception(reinterpret_cast<const char *>(errorStr));
 }
 
 void CALLBACK tessVertexCB(const GLvoid *vtx, void *data)
@@ -287,8 +286,7 @@ void CALLBACK tessVertexCB(const GLvoid *vtx, void *data)
 
 void CALLBACK tessCombineCB(GLdouble [3]/*coords[3]*/, void * /*vertex_data[4]*/, GLfloat /*weight[4]*/, void ** /*outData*/)
 {
-    //throw Exception("polygon contours intersect");
-    //ERROR << "polygon contours intersect\n";
+    throw Exception("polygon contours intersect");
 }
 
 // for RAII off GLUtesselator
@@ -303,7 +301,7 @@ struct Tessellator
         gluTessCallback(_tess, GLU_TESS_ERROR, (void (*)(void))tessErrorCB);
         gluTessCallback(_tess, GLU_TESS_VERTEX_DATA, (void (*)())tessVertexCB);
 	    gluTessCallback(_tess, GLU_TESS_EDGE_FLAG,  (void (*)())noStripCB);
-	    //gluTessCallback(_tess, GLU_TESS_COMBINE,  (void (*)())tessCombineCB);
+	    gluTessCallback(_tess, GLU_TESS_COMBINE,  (void (*)())tessCombineCB);
     }
     ~Tessellator(){
         gluDeleteTess(_tess);
@@ -336,7 +334,7 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
         for( int v = 0; v < ringSize - 1; v++ ) {
             const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v );
             const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
-            //if ( v && p == prevPos ) continue; // will not fill coord, but we don't care
+            if ( v && p == prevPos ) continue; // will not fill coord, but we don't care
             coord[currIdx + 0] = p.x();
             coord[currIdx + 1] = p.y();
             coord[currIdx + 2] = p.z();
