@@ -81,7 +81,8 @@ private:
     template< typename MULTITYPE >
     void push_back( const MULTITYPE * );
 
-    friend void CALLBACK tessVertexCB(const GLvoid *vtx, void *data);
+    friend void CALLBACK tessVertexCB(const GLdouble *vtx, void *data);
+    friend void CALLBACK tessCombineCB(GLdouble coords[3], GLdouble * vertex_data[4], GLfloat weight[4], void ** outData, void *data);
 
     void push_back( const LWTRIANGLE * );
     void push_back( const LWPOLY * );
