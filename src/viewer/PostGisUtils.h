@@ -26,6 +26,7 @@ void errorreporter(const char* fmt, va_list ap)
     va_start(ap, fmt);
     ERROR << va_arg(ap, const char *);
 }
+
 namespace Stack3d {
 namespace Viewer {
 
