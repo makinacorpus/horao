@@ -12,7 +12,6 @@ target_link_libraries( simpleViewer
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
     X11
-    poly2tri
 )
 
 add_library( osgdb_postgis MODULE 
@@ -27,6 +26,7 @@ target_link_libraries( osgdb_postgis
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
     ${GDAL_LIBRARY}
+    poly2tri
 )
 set_target_properties(osgdb_postgis PROPERTIES PREFIX "")
 

@@ -8,7 +8,7 @@
 using namespace Stack3d;
 using namespace Viewer;
 
-int main()
+int main(int argc, char ** argv)
 {
 
     std::vector< TestGeometry > testGeometry( createTestGeometries() );
@@ -48,11 +48,12 @@ int main()
             }
         }
         osg::ref_ptr<osg::Geometry> osgGeom = mesh.createGeometry();
-        if(0){
+        if( argc==2 && "-v" == std::string(argv[1]) ){
             osgViewer::Viewer v;
             osg::ref_ptr< osg::Geode > geode = new osg::Geode;
             geode->addDrawable( osgGeom.get() );
             v.setSceneData( geode.get() );
+            v.setUpViewInWindow(800, 0, 800, 800 );
             v.realize();
             v.run();
         }

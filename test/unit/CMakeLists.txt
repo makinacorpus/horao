@@ -19,6 +19,7 @@ target_link_libraries( PostGisUtils_test
 	${OPENSCENEGRAPH_LIBRARIES}  
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
+    poly2tri
 )
 add_test(PostGisUtils_test ${EXECUTABLE_OUTPUT_PATH}/PostGisUtils_testd)
 
