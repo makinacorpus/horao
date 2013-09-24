@@ -12,6 +12,7 @@ target_link_libraries( simpleViewer
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
     X11
+    poly2tri
 )
 
 add_library( osgdb_postgis MODULE 
