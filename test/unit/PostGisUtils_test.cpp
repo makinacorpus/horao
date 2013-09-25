@@ -2,6 +2,9 @@
 #include "TestGeometry.h"
 
 #include <osgViewer/Viewer>
+#include <osgViewer/ViewerEventHandlers>
+#include <osgGA/StateSetManipulator>
+
 #include <iostream>
 
 
@@ -18,7 +21,7 @@ int main(int argc, char ** argv)
 
         TriangleMesh mesh( osg::Matrix::identity() );
 
-        std::cerr << testGeometry[t].wkt << " " << testGeometry[t].comment << "\n";
+        //std::cerr << t << (testGeometry[t].isValid ? " valid " : " invalid ")  << testGeometry[t].comment << " " << testGeometry[t].wkt << "\n";
 
 
         try {
@@ -37,6 +40,11 @@ int main(int argc, char ** argv)
             }
 
             mesh.push_back( g.get() );
+
+            if ( !testGeometry[t].isValid ){
+                WARNING << "failed to detect invalid geometry: "  << testGeometry[t].wkt << " " << testGeometry[t].comment << "\n";
+                //return EXIT_FAILURE;
+            }
         }
         catch (std::exception & e ) {
             if ( testGeometry[t].isValid ){
@@ -44,7 +52,7 @@ int main(int argc, char ** argv)
                 return EXIT_FAILURE;
             }
             else { 
-                WARNING << "failed to process invalid geometry: "  << testGeometry[t].wkt << " " << testGeometry[t].comment << e.what() << "\n";
+                //DEBUG_TRACE << "invalid geometry (" << testGeometry[t].comment  << ") caused:"<< e.what() << "\n";
             }
         }
         osg::ref_ptr<osg::Geometry> osgGeom = mesh.createGeometry();
@@ -54,6 +62,11 @@ int main(int argc, char ** argv)
             geode->addDrawable( osgGeom.get() );
             v.setSceneData( geode.get() );
             v.setUpViewInWindow(800, 0, 800, 800 );
+            v.addEventHandler(new osgViewer::StatsHandler);
+            v.addEventHandler(new osgGA::StateSetManipulator( v.getCamera()->getOrCreateStateSet()) );
+            v.addEventHandler(new osgViewer::ScreenCaptureHandler);
+            v.setFrameStamp( new osg::FrameStamp );
+            v.addEventHandler(new osgViewer::WindowSizeHandler);
             v.realize();
             v.run();
         }

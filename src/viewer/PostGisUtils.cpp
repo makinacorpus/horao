@@ -32,6 +32,7 @@
 #ifdef POLY2TRI
 #include "../poly2tri/poly2tri.h"
 #include <memory>
+#include <iomanip>
 #endif
 
 namespace Stack3d {
@@ -60,7 +61,6 @@ struct LwgeomInitialiser
 {
     LwgeomInitialiser(){
         lwgeom_set_handlers(NULL, NULL, NULL, errorreporter, NULL);
-        DEBUG_TRACE << "initialized error handler\n";
     }
 } lwgeomInitialiser; // dummy class to ensure initilization is done
 
@@ -378,7 +378,8 @@ struct Ring2d : std::vector< osg::Vec2 > {};
 
 //! stores polygon with points converted to osg format
 //! to avoid doing conversion several time
-//! and prunes dupplicate points
+//! and prunes dupplicate points and remove last point
+//! we keep the last point wich should be a duplicate of the first
 struct Poly : boost::noncopyable
 {
     Poly( const LWPOLY * lwpoly, const osg::Matrix & layerToWord  )
@@ -419,20 +420,17 @@ struct Poly2d : boost::noncopyable
     std::vector< Ring2d > rings;
 };
 
-
 inline
-const osg::Vec3 normal( const Poly & poly )
+const osg::Vec3 normal( const Ring & ring )
 {
-    assert(poly.rings.size());
     // Uses Newell's formula
     osg::Vec3 normal( 0.0, 0.0, 0.0 );
 
-    const osg::Vec3 * extRing = &(poly.rings[0][0]);
-    const size_t npoints = poly.rings[0].size(); 
+    const size_t npoints = ring.size() - 1; 
     for ( size_t i = 0; i < npoints; ++i )
     {
-       const osg::Vec3 pi = extRing[i];
-       const osg::Vec3 pj = extRing[ (i+1) % npoints ];
+       const osg::Vec3 pi = ring[i];
+       const osg::Vec3 pj = ring[ i+1 ];
        normal[0] += ( pi[1] - pj[1] ) * ( pi[2] + pj[2] );
        normal[1] += ( pi[2] - pj[2] ) * ( pi[0] + pj[0] );
        normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
@@ -448,7 +446,7 @@ bool isPlane( const Poly & poly, const osg::Vec3 * nrml = NULL )
     assert(poly.rings[0].size());
     const osg::Vec3 first = poly.rings[0][0];
 
-    const osg::Vec3 n = nrml ? *nrml : normal(poly);
+    const osg::Vec3 n = nrml ? *nrml : normal(poly.rings[0]);
     
     const size_t nrings = poly.rings.size();
     for ( size_t r=0; r<nrings; r++ ){
@@ -485,66 +483,226 @@ bool isCovered( const osg::Vec2 & point, const Ring2d & ring )
     }
     return intersectionCount%2; // even -> outside
 } 
-/*
-inline 
-const Validity is_valid( const LWPOLY * lwpoly )
+
+struct Segment2d: boost::noncopyable
 {
-    const osg::Vec3 normal = normal(lwpoly);
+    Segment2d(const osg::Vec2 & s, const osg::Vec2 e): start(s), end(e) {}
+    float length2() const { return ( end - start ).length2(); }
+    const osg::Vec2 start;
+    const osg::Vec2 end;
+};
 
-    // Closed simple rings
-    const int numRings =  lwpoly->nrings;
+inline
+std::ostream & operator<<(std::ostream & o, const Segment2d & s)
+{
+    o << "[(" << s.start.x() << ", " << s.start.y() << ") , (" << s.end.x() << ", " << s.end.y() << ")]";
+    return o;
+}
 
-    for ( int r=0; r != numRings; ++r ) {
-        if ( lwpoly->ring[r].npoints < 4 ) {
+struct Intersection
+{
+    Intersection( const Segment2d & s1, const Segment2d & s2 )
+    {
+        assert( s1.length2() > FLT_EPSILON );
+        assert( s2.length2() > FLT_EPSILON );
+
+        // the intersection occurs for unknown a and b such that
+        // s1.start + a * ( s1.end - s1.start ) - s2.start - b * ( s2.end - s2.start ) = 0
+        // that we put in matrix form
+        // [ s1.end.x - s1.start.x     s2.start.x - s2.end.x ]( a ) = ( s2.start.x - s1.start.x )
+        // [ s1.end.y - s1.start.y     s2.start.y - s2.end.y ]( b ) = ( s2.start.y - s1.start.y )
+        // the solution, if any is then tested for a and b in [0,1]
+        
+        const float det = (s1.end.x() - s1.start.x()) * (s2.start.y() - s2.end.y()) 
+                        - (s2.start.x() - s2.end.x()) * (s1.end.y() - s1.start.y());
+        if ( std::abs( det ) < FLT_EPSILON ){ // parallel
+            // test if alligned, solving for one direction only
+            // s1.start + aStart * ( s1.end - s1.start ) = s2.start
+            // s1.start + aEnd * ( s1.end - s1.start ) = s2.end
+            
+            const osg::Vec2 u = s1.end - s1.start;
+            const osg::Vec2 v = s2.start - s1.start;
+            if ( std::abs( u.x()*v.y() - u.y()*v.x() ) > FLT_EPSILON ) return; // points not aligned
+
+            const float denom = s1.end.x() - s1.start.x();
+            const float aStart = std::abs( denom ) > FLT_EPSILON
+                               ? ( s2.start.x() - s1.start.x() ) / ( denom )
+                               : ( s2.start.y() - s1.start.y() ) / ( s1.end.y() - s1.start.y() ); 
+            const float aEnd = std::abs( denom ) > FLT_EPSILON
+                             ? ( s2.end.x() - s1.start.x() ) / ( denom )
+                             : ( s2.end.y() - s1.start.y() ) / ( s1.end.y() - s1.start.y() ); 
+            if ( aStart * aEnd < 0 // s1 lies on s2
+               || ( std::abs(aStart) < FLT_EPSILON && std::abs(aEnd - 1.f) < FLT_EPSILON ) ){ // s1 == s2
+                _points.push_back( s1.start); 
+                _points.push_back(  s1.end );
+            }
+            else if ( aStart > 0 && aStart < 1.f ){
+                 _points.push_back( osg::Vec2() ); // we dont care for first point
+                 _points.push_back( s1.start + (s1.end -s1.start) * aStart );
+            }
+            else if ( ( aEnd > 0 && aEnd < 1.f ) ){
+                 _points.push_back( osg::Vec2() ); // we dont care for first point
+                 _points.push_back( s1.start + (s1.end -s1.start) * aEnd );
+            }
+            else if ( std::abs(aStart) < FLT_EPSILON || std::abs(aEnd) < FLT_EPSILON ){
+                _points.push_back( s1.start );
+            }
+            else if ( std::abs(aStart - 1.f) < FLT_EPSILON || std::abs(aEnd - 1.f) < FLT_EPSILON){
+                _points.push_back( s1.end );
+            }
+        }
+        else{ // not parallel
+            // solving a linear system here, watch out :)
+
+            const float a = ( ( s2.start.x() - s1.start.x() ) * ( s2.start.y() - s2.end.y() )
+                            - ( s2.start.x() - s2.end.x() ) * ( s2.start.y() - s1.start.y() ) )
+                          / det;
+            const float b = ( ( ( s1.end.x() - s1.start.x() ) * ( s2.start.y() - s1.start.y() ) )
+                            - ( ( s2.start.x() - s1.start.x() ) * ( s1.end.y() - s1.start.y() ) ) )
+                          / det;
+            if ( a >= 0 && a <= 1.f && b >= 0 && b <= 1.f ) _points.push_back( s1.start + (s1.end -s1.start) * a );
+        }
+    }
+    
+    size_t dimension() const { return _points.size(); }
+    const osg::Vec2 & point() const { assert( dimension() == 1 ); return _points.front(); }
+private:
+    std::vector< osg::Vec2 > _points;
+};
+
+inline 
+bool selfIntersects( const Ring2d & ring )
+{
+    // stupid O( n² ) algo
+    const size_t npoints = ring.size() - 1;
+    const size_t npointsMinus = npoints - 1;
+    for (size_t i=0; i<npointsMinus; i++){
+        const Segment2d s1( ring[i], ring[i+1] );
+        for (size_t j=i+2; j<npoints; j++){ // do not test neighbors
+            const Segment2d s2( ring[j], ring[j+1] );
+            const Intersection inter( s1, s2 );
+            if ( inter.dimension() > 0  && !(inter.dimension() == 1 && 0 == i && (npoints - 1) == j) ) return true;
+        }
+    }
+    return false;
+}
+
+const size_t INF = size_t(-1);
+
+inline 
+size_t nbIntersections( const Ring2d & ring1, const Ring2d & ring2 )
+{
+
+    // insert only points that are far enought from already inserted ones
+    struct UniquePointSet: boost::noncopyable
+    {
+        void insert( const osg::Vec2 & p)
+        {
+            for (size_t i=0; i<_points.size(); i++){
+                if ( ( _points[i] - p ).length2() < FLT_EPSILON) return;
+            }
+            _points.push_back(p);
+        }
+
+        size_t size() const { return _points.size(); }
+    private:
+        std::vector<osg::Vec2> _points;
+    };
+
+
+    UniquePointSet set;
+
+    // stupid O( n x m ) algo
+    const size_t npoints1 = ring1.size() - 1;
+    const size_t npoints2 = ring2.size() - 1;
+    for (size_t i=0; i<npoints1; i++){
+        const Segment2d s1( ring1[i], ring1[i+1] );
+        for (size_t j=0; j<npoints2; j++){
+            const Segment2d s2( ring2[j], ring2[j+1] );
+            const Intersection inter( s1, s2 );
+            if ( inter.dimension() == 1 ) set.insert( inter.point() );
+            else if ( inter.dimension() == 2 ) return INF; 
+        }
+    }
+    return set.size();
+}
+
+inline 
+const Validity is_valid( const Poly & poly )
+{
+    // Closed simple rings (we test for simple a bit after)
+    const size_t nrings =  poly.rings.size();
+    if ( !nrings ) return Validity::valid(); // empty is valid
+
+    for ( size_t r=0; r != nrings; ++r ) {
+        if ( poly.rings[r].size() < 4 ) {
             return Validity::invalid( ( boost::format( "not enought points in ring %d" ) % r ).str() );
         }
-
-        const POINT3DZ start = getPoint3dz( lwpoly->rings[0], 0 );
-        const POINT3DZ end   = getPoint3dz( lwpoly->rings[0], lwpoly->ring[r].npoints - 1 );
-        const double distanceToClose = osg::Vec3( start.x-end.x, start.y-end.y, start.z-end.z ).length2();
-        if ( distanceToClose > 0 ) {
+        if ( poly.rings[r].front() != poly.rings[r].back() ) {
             return Validity::invalid( ( boost::format( "ring %d is not closed" ) % r ).str() );
         }
+    }
 
-        if ( p.is3D() ? selfIntersects3D( p.ringN( r ) ) : selfIntersects( p.ringN( r ) ) ) {
-            return Validity::invalid( ( boost::format( "ring %d self intersects" ) % r ).str() );
-        }
+    const osg::Vec3 nrml = normal(poly.rings[0]);
+
+    // should have a surface and ence an non null normal
+    if ( nrml.length2() < FLT_EPSILON ){
+        return Validity::invalid( "zero surface (either degenerated to a point, or to a line, or alway up and alfway down)" );
     }
 
     // Orientation 
     // Polygone must be planar (all points in the same plane)
-    if ( !isPlane3D< Kernel >( p, toleranceAbs ) ) {
+    if ( !isPlane( poly, &nrml ) ) {
         return Validity::invalid( "points don't lie in the same plane" );
     }
 
     // interior rings must be oriented opposit to exterior;
-    if ( p.hasInteriorRings() ) {
-        const CGAL::Vector_3< Kernel > nExt = normal3D< Kernel >( p.exteriorRing() );
+    for ( std::size_t r=1; r<nrings; ++r ) {
+        if ( normal(poly.rings[r]) * nrml > 0 ) {
+            return Validity::invalid( ( boost::format( "interior ring %d is oriented in the same direction as exterior ring" ) % r ).str() );
+        }
+    }
 
-        for ( std::size_t r=0; r<p.numInteriorRings(); ++r ) {
-            const CGAL::Vector_3< Kernel > nInt = normal3D< Kernel>( p.interiorRingN( r ) );
-
-            if ( nExt * nInt > 0 ) {
-                return Validity::invalid( ( boost::format( "interior ring %d is oriented in the same direction as exterior ring" ) % r ).str() );
+    // build a base to project the polygon onto
+    osg::Vec3 base[2];
+    {
+        const osg::Vec3 origin = poly.rings[0][0];
+        float norm2 = 0;
+        const size_t npoints = poly.rings[0].size() - 1;
+        for ( size_t p=1; p<npoints; p++){
+            const osg::Vec3 candidate = poly.rings[0][p] - origin;
+            if ( candidate.length2() > norm2 ){
+                base[0] = candidate;
+                norm2 = candidate.length2();
             }
+        }
+        base[0].normalize();
+        base[1] = nrml ^ base[0];
+    }
+
+    // project polygon
+    const Poly2d poly2d( poly, base );
+
+    // Test rings simplicity now
+    for ( std::size_t r=0; r<nrings; ++r ) {
+        if ( selfIntersects( poly2d.rings[r] ) ) {
+            return Validity::invalid( ( boost::format( "ring %d self intersects" ) % r ).str() );
         }
     }
 
     // Rings must not share more than one point (no intersection)
+    // the interior should be connected, so we build a graph of touching rings and detect loops
     {
         typedef std::pair<int,int> Edge;
         std::vector<Edge> touchingRings;
 
-        for ( size_t ri=0; ri < numRings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
-            for ( size_t rj=ri+1; rj < numRings; ++rj ) {
-                std::auto_ptr<Geometry> inter = p.is3D()
-                                                ? intersection3D( p.ringN( ri ), p.ringN( rj ) )
-                                                : intersection( p.ringN( ri ), p.ringN( rj ) );
-
-                if ( ! inter->isEmpty() && ! inter->is< Point >() ) {
+        for ( size_t ri=0; ri < nrings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
+            for ( size_t rj=ri+1; rj < nrings; ++rj ) {
+                const size_t nbInter = nbIntersections( poly2d.rings[ri], poly2d.rings[rj] );
+                if ( nbInter > 1 ) {
                     return Validity::invalid( ( boost::format( "intersection between ring %d and %d" ) % ri % rj ).str() );
                 }
-                else if ( ! inter->isEmpty() && inter->is< Point >() ) {
+                else if ( nbInter == 1 ) {
                     touchingRings.push_back( Edge( ri,rj ) );
                 }
             }
@@ -557,7 +715,7 @@ const Validity is_valid( const LWPOLY * lwpoly )
                     property<edge_color_t, default_color_type> > Graph;
             typedef graph_traits<Graph>::vertex_descriptor vertex_t;
 
-            Graph g( touchingRings.begin(), touchingRings.end(), numRings );
+            Graph g( touchingRings.begin(), touchingRings.end(), nrings );
 
             bool hasLoop = false;
             LoopDetector vis( hasLoop );
@@ -569,31 +727,26 @@ const Validity is_valid( const LWPOLY * lwpoly )
         }
     }
 
-    if ( p.hasInteriorRings() ) {
-        // Interior rings must be interior to exterior ring
-        for ( size_t r=0; r < p.numInteriorRings(); ++r ) { // no need for numRings-1, the next loop won't be entered for the last ring
-            if ( p.is3D()
-                    ? !coversPoints3D( Polygon( p.exteriorRing() ), Polygon( p.interiorRingN( r ) ) )
-                    : !coversPoints( Polygon( p.exteriorRing() ), Polygon( p.interiorRingN( r ) ) )
-               ) {
-                return Validity::invalid( ( boost::format( "exterior ring doesn't cover interior ring %d" ) % r ).str() );
-            }
+    // Interior rings must be interior to exterior ring
+    // since there is no crossing (tested above), just check that the firs point of int is coverd by ext
+    for ( size_t r=1; r < nrings ; ++r ) {
+        if ( ! isCovered( poly2d.rings[r][0], poly2d.rings[0] ) ){
+            return Validity::invalid( ( boost::format( "exterior ring doesn't cover interior ring %d" ) % r ).str() );
         }
+    }
 
-        // Interior ring must not cover one another
-        for ( size_t ri=0; ri < p.numInteriorRings(); ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
-            for ( size_t rj=ri+1; rj < p.numInteriorRings(); ++rj ) {
-                if ( p.is3D()
-                        ? coversPoints3D( Polygon( p.interiorRingN( ri ) ), Polygon( p.interiorRingN( rj ) ) )
-                        : coversPoints( Polygon( p.interiorRingN( ri ) ), Polygon( p.interiorRingN( rj ) ) )
-                   ) {
-                    return Validity::invalid( ( boost::format( "interior ring %d covers interior ring %d" ) % ri % rj ).str() );
-                }
+    // Interior ring must not cover one another
+    // again, since there is no crossing, testing just two point, since one contact point is allowed
+    // and it could be the first tested
+    for ( size_t ri=1; ri < nrings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
+        for ( size_t rj=ri+1; rj < nrings; ++rj ) {
+            if ( isCovered( poly2d.rings[rj][0], poly2d.rings[ri] ) && isCovered( poly2d.rings[rj][1], poly2d.rings[ri] ) ){
+                return Validity::invalid( ( boost::format( "interior ring %d covers interior ring %d" ) % ri % rj ).str() );
             }
         }
     }
+    return Validity::valid();
 }
-*/
 
 #ifdef POLY2TRI
 void TriangleMesh::push_back( const LWPOLY * lwpoly )
@@ -603,12 +756,13 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
     const int numRings = lwpoly->nrings;
     if ( numRings == 0 ) return;
 
-    /*
-    if (!is_valid(lwpoly)){
+    Validity validity( is_valid( Poly( lwpoly, _layerToWord ) ) );
+    if (!validity){
         //! todo draw lines for rings but no contour
+        ERROR << "invalid polygon (" << validity.reason() << ")\n";
         return;
+        //throw Exception( "invalid polygon (" + validity.reason() + ")" );
     }
-    */
 
     // Normal computation.
     //

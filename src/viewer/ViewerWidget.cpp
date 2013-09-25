@@ -99,8 +99,6 @@ ViewerWidget::ViewerWidget():
         //getLight()->setDiffuse(osg::Vec4( 0.6,0.6,0.6,1 ));
         //getLight()->setSpecular(osg::Vec4( 0.9,0.9,0.9,1 ));
 
-        addEventHandler( new osgViewer::StatsHandler );
-
         osg::ref_ptr<osgGA::KeySwitchMatrixManipulator> keyswitchManipulator = new osgGA::KeySwitchMatrixManipulator;
 
         keyswitchManipulator->addMatrixManipulator( '1', "Terrain", new osgGA::TerrainManipulator() );
