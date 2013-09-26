@@ -37,6 +37,7 @@
 #include <cstddef>
 #include <assert.h>
 #include <cmath>
+#include <stdexcept>
 
 namespace p2t {
 
@@ -135,10 +136,7 @@ struct Edge {
         q = &p1;
         p = &p2;
       } else if (p1.x == p2.x) {
-        // Repeat points
-        //assert(false);
-          q = &p1;
-          p = &p2;
+        throw std::runtime_error("Repeat points");
       }
     }
 

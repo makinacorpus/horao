@@ -17,7 +17,7 @@
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 
-#define DEBUG_OUT if (0) std::cerr
+#define DEBUG_OUT if (1) std::cerr
 
 // for GDAL RAII
 struct Dataset
@@ -242,6 +242,8 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             Dataset raster( am["elevation"].c_str() );
             double transform[6];
             raster->GetGeoTransform( transform );
+            const int pixelWidth = raster->GetRasterXSize();
+            const int pixelHeight = raster->GetRasterYSize();
             
             // assume square pixels
             assert( std::abs(transform[4]) < FLT_EPSILON );
@@ -267,10 +269,12 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             const double dataScale = band->GetScale( &ok );
             assert(ok);
             for ( std::vector<osg::Vec3>::iterator v = mesh.begin(); v!=mesh.end(); v++){
-               band->RasterIO( GF_Read, int( ( v->x() + origin.x() - originX )*pixelPerMetreX), 
-                                        int( ( originY - v->y() - origin.y() )*pixelPerMetreY), 
-                                        1, 1, blockData, 1, 1, dType, 0, 0 ); 
-               v->z() = float( (SRCVAL(blockData, dType, 0) * dataScale)  + dataOffset ) - origin.z();
+               const int posX = int( ( v->x() + origin.x() - originX )*pixelPerMetreX );
+               const int posY = int( ( originY - v->y() - origin.y() )*pixelPerMetreY);
+               if ( posX >=0 && posX < pixelWidth && posY >= 0 && posY < pixelHeight ){
+                   band->RasterIO( GF_Read, posX, posY, 1, 1, blockData, 1, 1, dType, 0, 0 ); 
+                   v->z() = float( (SRCVAL(blockData, dType, 0) * dataScale)  + dataOffset ) - origin.z();
+               }
             }
 
             

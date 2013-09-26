@@ -21,7 +21,7 @@ int main(int argc, char ** argv)
 
         TriangleMesh mesh( osg::Matrix::identity() );
 
-        //std::cerr << t << (testGeometry[t].isValid ? " valid " : " invalid ")  << testGeometry[t].comment << " " << testGeometry[t].wkt << "\n";
+        std::cerr << t << (testGeometry[t].isValid ? " valid " : " invalid ")  << testGeometry[t].comment << " " << testGeometry[t].wkt << "\n";
 
 
         try {
@@ -41,8 +41,11 @@ int main(int argc, char ** argv)
 
             mesh.push_back( g.get() );
 
-            if ( !testGeometry[t].isValid ){
-                WARNING << "failed to detect invalid geometry: "  << testGeometry[t].wkt << " " << testGeometry[t].comment << "\n";
+            if ( !testGeometry[t].isValid 
+                    && ( g.get()->type == POLYGONTYPE 
+                      || g.get()->type == MULTIPOLYGONTYPE 
+                      || g.get()->type == POLYHEDRALSURFACETYPE )){
+                ERROR << "failed to detect invalid geometry: "  << testGeometry[t].wkt << " " << testGeometry[t].comment << "\n";
                 //return EXIT_FAILURE;
             }
         }
@@ -51,9 +54,7 @@ int main(int argc, char ** argv)
                 ERROR << "failed to process valid geometry: "  << testGeometry[t].wkt << " " << testGeometry[t].comment << " " << e.what() << "\n";
                 return EXIT_FAILURE;
             }
-            else { 
-                //DEBUG_TRACE << "invalid geometry (" << testGeometry[t].comment  << ") caused:"<< e.what() << "\n";
-            }
+            //DEBUG_TRACE << "invalid geometry (" << testGeometry[t].comment  << ") caused:"<< e.what() << "\n";
         }
         osg::ref_ptr<osg::Geometry> osgGeom = mesh.createGeometry();
         if( argc==2 && "-v" == std::string(argv[1]) ){

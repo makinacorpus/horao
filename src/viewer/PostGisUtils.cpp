@@ -28,7 +28,7 @@
 #include <boost/graph/undirected_dfs.hpp>
 #include <boost/noncopyable.hpp>
 
-#define POLY2TRI
+//#define POLY2TRI
 #ifdef POLY2TRI
 #include "../poly2tri/poly2tri.h"
 #include <memory>
@@ -262,72 +262,8 @@ void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )
     for (int i=0; i<3; i++) _nrml.push_back( normal );
 }
 
-// nop callback
-void CALLBACK noStripCB(GLboolean flag)
-{
-    //assert( flag );
-    (void)flag;
-}
 
-void CALLBACK tessBeginCB(GLenum which)
-{
-    //assert( which == GL_TRIANGLES );
-    (void)which;
-}
-
-void CALLBACK tessEndCB(GLenum which)
-{
-    //assert( which == GL_TRIANGLES );
-    (void)which;
-}
-
-void CALLBACK tessErrorCB(GLenum errorCode)
-{
-    const GLubyte * errorStr = gluErrorString(errorCode);
-    throw Exception(reinterpret_cast<const char *>(errorStr));
-}
-
-void CALLBACK tessVertexCB(const GLdouble *vtx, void *data)
-{
-    // cast back to double type
-    TriangleMesh * that = (TriangleMesh * )data;
-    that->_tri.push_back( that->_vtx.size() );
-    that->_vtx.push_back( osg::Vec3( vtx[0], vtx[1], vtx[2] ) );
-}
-
-void CALLBACK tessCombineCB(GLdouble coords[3], GLdouble * /*vertex_data*/[4], GLfloat /*weight*/[4], void ** outData, void *data)
-{
-    GLdouble * vertex = (GLdouble *) malloc(3 * sizeof(GLdouble));
-    vertex[0] = coords[0];
-    vertex[1] = coords[1];
-    vertex[2] = coords[2];
-    *outData = vertex;
-    TriangleMesh * that = (TriangleMesh * )data;
-    that->_tri.push_back( that->_vtx.size() );
-    that->_vtx.push_back( osg::Vec3( vertex[0], vertex[1], vertex[2] ) );
-}
-
-// for RAII off GLUtesselator
-struct Tessellator
-{
-    Tessellator(){
-        _tess = gluNewTess();
-        gluTessProperty(_tess, GLU_TESS_WINDING_RULE, GLU_TESS_WINDING_POSITIVE);
-        //gluTessProperty(_tess, GLU_TESS_BOUNDARY_ONLY, GL_TRUE); 
-        gluTessCallback(_tess, GLU_TESS_BEGIN, (void (*)(void))tessBeginCB);
-        gluTessCallback(_tess, GLU_TESS_END, (void (*)(void))tessEndCB);
-        gluTessCallback(_tess, GLU_TESS_ERROR, (void (*)(void))tessErrorCB);
-        gluTessCallback(_tess, GLU_TESS_VERTEX_DATA, (void (*)())tessVertexCB);
-	    gluTessCallback(_tess, GLU_TESS_EDGE_FLAG,  (void (*)())noStripCB);
-	    gluTessCallback(_tess, GLU_TESS_COMBINE_DATA,  (void (*)())tessCombineCB);
-    }
-    ~Tessellator(){
-        gluDeleteTess(_tess);
-    }
-
-    GLUtesselator * _tess;
-};
-
+#ifdef POLY2TRI
 struct Validity {
     /**
      * @note the class has private ctor to force the use of functions valid() and invalid(reason) that are clearer in the code than to remember that "Valid constructed with a reason is invalid"
@@ -440,7 +376,7 @@ const osg::Vec3 normal( const Ring & ring )
 }
 
 inline
-bool isPlane( const Poly & poly, const osg::Vec3 * nrml = NULL )
+bool isPlane( const Poly & poly, const osg::Vec3 * nrml = NULL, float epsilon = FLT_EPSILON )
 {
     assert(poly.rings.size());
     assert(poly.rings[0].size());
@@ -453,7 +389,7 @@ bool isPlane( const Poly & poly, const osg::Vec3 * nrml = NULL )
         const osg::Vec3 * ring = &(poly.rings[r][0]);
         const size_t npoints = poly.rings[r].size(); 
         for ( size_t i = 0; i < npoints; ++i ) {
-            if ( (ring[i] - first) * n > FLT_EPSILON ) return false;
+            if ( (ring[i] - first) * n > epsilon ) return false;
         }
     }
     return true;
@@ -588,7 +524,7 @@ bool selfIntersects( const Ring2d & ring )
 }
 
 const size_t INF = size_t(-1);
-
+//! @return the number of point itersections, INF if line intersection
 inline 
 size_t nbIntersections( const Ring2d & ring1, const Ring2d & ring2 )
 {
@@ -609,7 +545,6 @@ size_t nbIntersections( const Ring2d & ring1, const Ring2d & ring2 )
         std::vector<osg::Vec2> _points;
     };
 
-
     UniquePointSet set;
 
     // stupid O( n x m ) algo
@@ -624,11 +559,13 @@ size_t nbIntersections( const Ring2d & ring1, const Ring2d & ring2 )
             else if ( inter.dimension() == 2 ) return INF; 
         }
     }
+    if (set.size() == 1) DEBUG_TRACE << "one contact point between two rings\n";
     return set.size();
 }
 
+// you get usefull output from this
 inline 
-const Validity is_valid( const Poly & poly )
+const Validity isValid( const Poly & poly, osg::Vec3 base[3], std::unique_ptr<Poly2d> & poly2d, bool fullCheck = true )
 {
     // Closed simple rings (we test for simple a bit after)
     const size_t nrings =  poly.rings.size();
@@ -636,38 +573,18 @@ const Validity is_valid( const Poly & poly )
 
     for ( size_t r=0; r != nrings; ++r ) {
         if ( poly.rings[r].size() < 4 ) {
-            return Validity::invalid( ( boost::format( "not enought points in ring %d" ) % r ).str() );
+            return Validity::invalid( ( boost::format( "not enought points (%d) in ring %d" ) % poly.rings[r].size() % r ).str() );
         }
         if ( poly.rings[r].front() != poly.rings[r].back() ) {
             return Validity::invalid( ( boost::format( "ring %d is not closed" ) % r ).str() );
         }
     }
 
-    const osg::Vec3 nrml = normal(poly.rings[0]);
-
-    // should have a surface and ence an non null normal
-    if ( nrml.length2() < FLT_EPSILON ){
-        return Validity::invalid( "zero surface (either degenerated to a point, or to a line, or alway up and alfway down)" );
-    }
-
-    // Orientation 
-    // Polygone must be planar (all points in the same plane)
-    if ( !isPlane( poly, &nrml ) ) {
-        return Validity::invalid( "points don't lie in the same plane" );
-    }
-
-    // interior rings must be oriented opposit to exterior;
-    for ( std::size_t r=1; r<nrings; ++r ) {
-        if ( normal(poly.rings[r]) * nrml > 0 ) {
-            return Validity::invalid( ( boost::format( "interior ring %d is oriented in the same direction as exterior ring" ) % r ).str() );
-        }
-    }
-
+    base[2] = normal(poly.rings[0]);
+    float norm2 = 0;
     // build a base to project the polygon onto
-    osg::Vec3 base[2];
     {
         const osg::Vec3 origin = poly.rings[0][0];
-        float norm2 = 0;
         const size_t npoints = poly.rings[0].size() - 1;
         for ( size_t p=1; p<npoints; p++){
             const osg::Vec3 candidate = poly.rings[0][p] - origin;
@@ -677,154 +594,170 @@ const Validity is_valid( const Poly & poly )
             }
         }
         base[0].normalize();
-        base[1] = nrml ^ base[0];
+        base[1] = base[2] ^ base[0];
     }
+    const float epsilon = std::sqrt(norm2) * .001f;
+
+
+    // should have a surface and ence an non null normal
+    if ( base[2].length2() < FLT_EPSILON ){
+        return Validity::invalid( "zero surface (either degenerated to a point, or to a line, or alway up and alfway down)" );
+    }
+
+    // Orientation 
+    // Polygone must be planar (all points in the same plane)
+    if ( !isPlane( poly, &base[2], epsilon ) ) {
+        return Validity::invalid( "points don't lie in the same plane" );
+    }
+
+    // interior rings must be oriented opposit to exterior;
+    for ( std::size_t r=1; r<nrings; ++r ) {
+        if ( normal(poly.rings[r]) * base[2] > 0 ) {
+            return Validity::invalid( ( boost::format( "interior ring %d is oriented in the same direction as exterior ring" ) % r ).str() );
+        }
+    }
+
 
     // project polygon
-    const Poly2d poly2d( poly, base );
+    poly2d.reset( new Poly2d( poly, base ) );
 
-    // Test rings simplicity now
-    for ( std::size_t r=0; r<nrings; ++r ) {
-        if ( selfIntersects( poly2d.rings[r] ) ) {
-            return Validity::invalid( ( boost::format( "ring %d self intersects" ) % r ).str() );
-        }
-    }
-
-    // Rings must not share more than one point (no intersection)
-    // the interior should be connected, so we build a graph of touching rings and detect loops
-    {
-        typedef std::pair<int,int> Edge;
-        std::vector<Edge> touchingRings;
-
-        for ( size_t ri=0; ri < nrings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
-            for ( size_t rj=ri+1; rj < nrings; ++rj ) {
-                const size_t nbInter = nbIntersections( poly2d.rings[ri], poly2d.rings[rj] );
-                if ( nbInter > 1 ) {
-                    return Validity::invalid( ( boost::format( "intersection between ring %d and %d" ) % ri % rj ).str() );
-                }
-                else if ( nbInter == 1 ) {
-                    touchingRings.push_back( Edge( ri,rj ) );
-                }
+    if (fullCheck){
+        // Test rings simplicity now
+        for ( std::size_t r=0; r<nrings; ++r ) {
+            if ( selfIntersects( poly2d->rings[r] ) ) {
+                return Validity::invalid( ( boost::format( "ring %d self intersects" ) % r ).str() );
             }
         }
 
+        // Rings must not share more than one point (no intersection)
+        // the interior should be connected, so we build a graph of touching rings and detect loops
         {
-            using namespace boost;
-            typedef adjacency_list< vecS, vecS, undirectedS,
-                    no_property,
-                    property<edge_color_t, default_color_type> > Graph;
-            typedef graph_traits<Graph>::vertex_descriptor vertex_t;
+            typedef std::pair<int,int> Edge;
+            std::vector<Edge> touchingRings;
 
-            Graph g( touchingRings.begin(), touchingRings.end(), nrings );
+            for ( size_t ri=0; ri < nrings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
+                for ( size_t rj=ri+1; rj < nrings; ++rj ) {
+                    const size_t nbInter = nbIntersections( poly2d->rings[ri], poly2d->rings[rj] );
+                    if ( nbInter > 1 ) {
+                        return Validity::invalid( ( boost::format( "intersection between ring %d and %d" ) % ri % rj ).str() );
+                    }
+                    else if ( nbInter == 1 ) {
+                        touchingRings.push_back( Edge( ri,rj ) );
+                    }
+                }
+            }
 
-            bool hasLoop = false;
-            LoopDetector vis( hasLoop );
-            undirected_dfs( g, root_vertex( vertex_t( 0 ) ).visitor( vis ).edge_color_map( get( edge_color, g ) ) );
+            {
+                using namespace boost;
+                typedef adjacency_list< vecS, vecS, undirectedS,
+                        no_property,
+                        property<edge_color_t, default_color_type> > Graph;
+                typedef graph_traits<Graph>::vertex_descriptor vertex_t;
 
-            if ( hasLoop ) {
-                return Validity::invalid( "interior is not connected" );
+                Graph g( touchingRings.begin(), touchingRings.end(), nrings );
+
+                bool hasLoop = false;
+                LoopDetector vis( hasLoop );
+                undirected_dfs( g, root_vertex( vertex_t( 0 ) ).visitor( vis ).edge_color_map( get( edge_color, g ) ) );
+
+                if ( hasLoop ) {
+                    return Validity::invalid( "interior is not connected" );
+                }
             }
         }
-    }
 
-    // Interior rings must be interior to exterior ring
-    // since there is no crossing (tested above), just check that the firs point of int is coverd by ext
-    for ( size_t r=1; r < nrings ; ++r ) {
-        if ( ! isCovered( poly2d.rings[r][0], poly2d.rings[0] ) ){
-            return Validity::invalid( ( boost::format( "exterior ring doesn't cover interior ring %d" ) % r ).str() );
+        // Interior rings must be interior to exterior ring
+        // since there is no crossing (tested above), just check that the firs point of int is coverd by ext
+        for ( size_t r=1; r < nrings ; ++r ) {
+            if ( ! isCovered( poly2d->rings[r][0], poly2d->rings[0] ) ){
+                return Validity::invalid( ( boost::format( "exterior ring doesn't cover interior ring %d" ) % r ).str() );
+            }
         }
-    }
 
-    // Interior ring must not cover one another
-    // again, since there is no crossing, testing just two point, since one contact point is allowed
-    // and it could be the first tested
-    for ( size_t ri=1; ri < nrings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
-        for ( size_t rj=ri+1; rj < nrings; ++rj ) {
-            if ( isCovered( poly2d.rings[rj][0], poly2d.rings[ri] ) && isCovered( poly2d.rings[rj][1], poly2d.rings[ri] ) ){
-                return Validity::invalid( ( boost::format( "interior ring %d covers interior ring %d" ) % ri % rj ).str() );
+        // Interior ring must not cover one another
+        // again, since there is no crossing, testing just two point, since one contact point is allowed
+        // and it could be the first tested
+        for ( size_t ri=1; ri < nrings; ++ri ) { // no need for numRings-1, the next loop won't be entered for the last ring
+            for ( size_t rj=ri+1; rj < nrings; ++rj ) {
+                if ( isCovered( poly2d->rings[rj][0], poly2d->rings[ri] ) && isCovered( poly2d->rings[rj][1], poly2d->rings[ri] ) ){
+                    return Validity::invalid( ( boost::format( "interior ring %d covers interior ring %d" ) % ri % rj ).str() );
+                }
             }
         }
     }
     return Validity::valid();
 }
 
-#ifdef POLY2TRI
 void TriangleMesh::push_back( const LWPOLY * lwpoly )
 {
     assert( lwpoly );
+    assert( lwpoly->nrings > 0 );
 
-    const int numRings = lwpoly->nrings;
-    if ( numRings == 0 ) return;
-
-    Validity validity( is_valid( Poly( lwpoly, _layerToWord ) ) );
+    Poly poly( lwpoly, _layerToWord );
+    osg::Vec3 base[3];
+    std::unique_ptr< Poly2d > poly2d;
+    Validity validity( isValid( poly, base, poly2d ) );
     if (!validity){
         //! todo draw lines for rings but no contour
-        ERROR << "invalid polygon (" << validity.reason() << ")\n";
+        char * wkt = lwgeom_to_wkt(lwpoly_as_lwgeom(lwpoly), WKT_EXTENDED, 16, NULL);
+        ERROR << "invalid polygon (" << validity.reason() << ") :" << wkt << "\n";
+        free(wkt);
         return;
         //throw Exception( "invalid polygon (" + validity.reason() + ")" );
     }
 
-    // Normal computation.
-    //
-    // We cannot accurately rely on triangles from the tessellation, since we could have
-    // very "degraded" triangles (close to a line), and the normal computation would be bad.
-    // In this case, we would have to average the normal vector over each triangle of the polygon.
-    // The Newell's formula is simpler and more direct here.
-    osg::Vec3 longestEdge;
-    float norm2 = 0;
-    osg::Vec3 normal( 0.0, 0.0, 0.0 );
-    const int sz = lwpoly->rings[0]->npoints;
-    for ( int i = 0; i < sz; ++i )
+    const osg::Vec3 normal = base[2];
+    const float distance = normal * poly.rings[0][0];
+
+    std::unique_ptr<p2t::CDT> cdt;
+    const float dmax = 100.f;
+    const float dmax2 = dmax*dmax;
+    try{
+        // retesselate
+        const size_t nrings = poly2d->rings.size();
+        for ( size_t r = 0; r < nrings; r++) {
+            const int npoints = poly2d->rings[r].size() - 1;
+            std::vector<p2t::Point*> polyline;
+            polyline.reserve(npoints*1.3f);
+            osg::Vec2 prev(0,0);
+            for( int v = 0; v < npoints; v++ ) {
+                const osg::Vec2 p =  poly2d->rings[r][v];
+                const osg::Vec2 delta = p - prev;
+                const float delta2 = delta.length2();
+                if ( v && delta2 < 2*FLT_MIN) continue;
+                if ( v && delta2 > dmax2 ){
+                    // interpolate points
+                    const size_t nbAddedPt = std::sqrt(delta2)/ dmax;
+                    for (size_t i=1; i<nbAddedPt; i++){
+                        const osg::Vec2 addedP = prev + delta*float(i)/nbAddedPt;
+                        polyline.push_back(new p2t::Point(addedP.x(), addedP.y()));
+                    }
+                }
+                polyline.push_back(new p2t::Point(p.x(), p.y()));           
+                prev = p;
+            }
+            if (!r){
+                cdt.reset( new p2t::CDT(polyline));
+            }
+            else {
+                cdt->AddHole(polyline);
+            }
+        }
+        cdt->Triangulate();
+    }
+    catch (std::exception & e)
     {
-       const POINT3DZ p3Di = getPoint3dz( lwpoly->rings[0], i );
-       const POINT3DZ p3Dj = getPoint3dz( lwpoly->rings[0], (i+1) % sz );
-       const osg::Vec3 pi= osg::Vec3( p3Di.x, p3Di.y, p3Di.z ) * _layerToWord;
-       const osg::Vec3 pj= osg::Vec3( p3Dj.x, p3Dj.y, p3Dj.z ) * _layerToWord;
-       if ( (pi - pj).length2() > norm2 ){
-           longestEdge = pi - pj;
-           norm2 = (pi - pj).length2();
-       }
-       normal[0] += ( pi[1] - pj[1] ) * ( pi[2] + pj[2] );
-       normal[1] += ( pi[2] - pj[2] ) * ( pi[0] + pj[0] );
-       normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
-    }
-    if ( normal.length2() < FLT_MIN || longestEdge.length2() < FLT_MIN ) return; // degenerated to a point
-    normal.normalize();
-    longestEdge.normalize();
-
-    std::auto_ptr<p2t::CDT> cdt;
-
-    const osg::Vec3 baseX = longestEdge;
-    const osg::Vec3 baseY = normal ^ longestEdge;
-    // retesselate and add rings
-    for ( int r = 0; r < numRings; r++) {
-        const int ringSize = lwpoly->rings[r]->npoints;
-        std::vector<p2t::Point*> polyline;
-        osg::Vec3 prev;
-        for( int v = 0; v < ringSize - 1; v++ ) {
-            const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v );
-            const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
-            if ( v && ( p - prev ).length2() < 2*FLT_MIN) continue;
-            polyline.push_back(new p2t::Point(p*baseX, p*baseY) );           
-            prev = p;
-
-        }
-        if (!r){
-            cdt.reset( new p2t::CDT(polyline));
-        }
-        else {
-            cdt->AddHole(polyline);
-        }
+        ERROR << "from poly2tri: " << e.what() << "\n";
+        return;
     }
 
-    cdt->Triangulate();
     std::vector<p2t::Triangle*> triangles(cdt->GetTriangles());
     for (size_t i = 0; i < triangles.size(); i++) {
         p2t::Triangle& t = *triangles[i];
         for (int j=0; j<3; j++){
             p2t::Point& a = *t.GetPoint(j);
             _tri.push_back( _vtx.size() );
-            _vtx.push_back( baseX * a.x + baseY * a.y);
+            _vtx.push_back( base[0] * a.x + base[1] * a.y + base[2] * distance);
         }
     }
 
@@ -832,6 +765,73 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
 }
 
 #else
+// nop callback
+void CALLBACK noStripCB(GLboolean flag)
+{
+    //assert( flag );
+    (void)flag;
+}
+
+void CALLBACK tessBeginCB(GLenum which)
+{
+    //assert( which == GL_TRIANGLES );
+    (void)which;
+}
+
+void CALLBACK tessEndCB(GLenum which)
+{
+    //assert( which == GL_TRIANGLES );
+    (void)which;
+}
+
+void CALLBACK tessErrorCB(GLenum errorCode)
+{
+    const GLubyte * errorStr = gluErrorString(errorCode);
+    throw Exception(reinterpret_cast<const char *>(errorStr));
+}
+
+void CALLBACK tessVertexCB(const GLdouble *vtx, void *data)
+{
+    // cast back to double type
+    TriangleMesh * that = (TriangleMesh * )data;
+    that->_tri.push_back( that->_vtx.size() );
+    that->_vtx.push_back( osg::Vec3( vtx[0], vtx[1], vtx[2] ) );
+}
+
+struct VecGL {GLdouble _comp[3];};
+std::list< VecGL > globalVtxForGlu;
+
+void CALLBACK tessCombineCB(GLdouble coords[3], GLdouble * /*vertex_data*/[4], GLfloat /*weight*/[4], void ** outData, void * /*data*/)
+{
+
+    globalVtxForGlu.push_back( VecGL() );
+    GLdouble * vertex = globalVtxForGlu.back()._comp;
+    vertex[0] = coords[0];
+    vertex[1] = coords[1];
+    vertex[2] = coords[2];
+    *outData = vertex;
+}
+
+// for RAII off GLUtesselator
+struct Tessellator
+{
+    Tessellator(){
+        _tess = gluNewTess();
+        gluTessProperty(_tess, GLU_TESS_WINDING_RULE, GLU_TESS_WINDING_POSITIVE);
+        //gluTessProperty(_tess, GLU_TESS_BOUNDARY_ONLY, GL_TRUE); 
+        gluTessCallback(_tess, GLU_TESS_BEGIN, (void (*)(void))tessBeginCB);
+        gluTessCallback(_tess, GLU_TESS_END, (void (*)(void))tessEndCB);
+        gluTessCallback(_tess, GLU_TESS_ERROR, (void (*)(void))tessErrorCB);
+        gluTessCallback(_tess, GLU_TESS_VERTEX_DATA, (void (*)())tessVertexCB);
+	    gluTessCallback(_tess, GLU_TESS_EDGE_FLAG,  (void (*)())noStripCB);
+	    gluTessCallback(_tess, GLU_TESS_COMBINE_DATA,  (void (*)())tessCombineCB);
+    }
+    ~Tessellator(){
+        gluDeleteTess(_tess);
+    }
+
+    GLUtesselator * _tess;
+};
 void TriangleMesh::push_back( const LWPOLY * lwpoly )
 {
     assert( lwpoly );
@@ -843,27 +843,37 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
     for ( int r = 0; r < numRings; r++) totalNumVtx += lwpoly->rings[r]->npoints;
     std::vector< GLdouble > coord( totalNumVtx*3 );
 
-    const size_t nTriangles = _tri.size();
-
-    // retesselate and add rings
-    Tessellator tesselator ;
-    gluTessBeginPolygon( tesselator._tess, this); // with NULL data
-    size_t currIdx = 0;
-    for ( int r = 0; r < numRings; r++) {
-        gluTessBeginContour(tesselator._tess);                      // outer quad
-        const int ringSize = lwpoly->rings[r]->npoints;
-        for( int v = 0; v < ringSize - 1; v++ ) {
-            const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v );
-            const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
-            coord[currIdx + 0] = p.x();
-            coord[currIdx + 1] = p.y();
-            coord[currIdx + 2] = p.z();
-            gluTessVertex(tesselator._tess, &(coord[currIdx]), &(coord[currIdx]));
-            currIdx+=3;
+    const size_t size = _tri.size();
+    assert( _vtx.size() == size );
+    try{
+        // retesselate and add rings
+        Tessellator tesselator ;
+        gluTessBeginPolygon( tesselator._tess, this); // with NULL data
+        size_t currIdx = 0;
+        for ( int r = 0; r < numRings; r++) {
+            gluTessBeginContour(tesselator._tess);                      // outer quad
+            const int ringSize = lwpoly->rings[r]->npoints;
+            for( int v = 0; v < ringSize - 1; v++ ) {
+                const POINT3DZ p3D = getPoint3dz( lwpoly->rings[r], v );
+                const osg::Vec3 p = osg::Vec3( p3D.x, p3D.y, p3D.z ) * _layerToWord;
+                coord[currIdx + 0] = p.x();
+                coord[currIdx + 1] = p.y();
+                coord[currIdx + 2] = p.z();
+                gluTessVertex(tesselator._tess, &(coord[currIdx]), &(coord[currIdx]));
+                currIdx+=3;
+            }
+            gluTessEndContour(tesselator._tess);                      // outer quad
         }
-        gluTessEndContour(tesselator._tess);                      // outer quad
+        gluTessEndPolygon(tesselator._tess);
+        globalVtxForGlu.clear(); // should keep allocated (reserved memory)
     }
-    gluTessEndPolygon(tesselator._tess);
+    catch (std::exception & e){
+        WARNING << "cannot tesselate polygon: " << e.what() << "\n";
+        // undo modifications to _tri and _vtx
+        _tri.resize(size);
+        _vtx.resize(size);
+        globalVtxForGlu.clear(); // should keep allocated (reserved memory)
+    }
 
 
     //// Normal computation.
@@ -889,7 +899,7 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
     if (( FLAGS_GET_Z( lwpoly->flags ) == 0 ) && ( normal[2] < 0 )) {
         // if this is a 2D surface and the normal is pointing down, reverse each new triangle
         normal[2] = 1;
-        for ( size_t i = nTriangles/3; i < _tri.size() / 3; ++i ) {
+        for ( size_t i = size/3; i < _tri.size() / 3; ++i ) {
             std::swap( _tri[3*i], _tri[3*i+2] );
         }
     }
