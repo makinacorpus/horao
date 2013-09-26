@@ -17,7 +17,7 @@
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 
-#define DEBUG_OUT if (1) std::cerr
+#define DEBUG_OUT if (0) std::cerr
 
 // for GDAL RAII
 struct Dataset
