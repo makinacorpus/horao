@@ -1,6 +1,5 @@
 #include "PostGisUtils.h"
 #include "StringUtils.h"
-#include "Log.h"
 
 #include <osgDB/FileNameUtils>
 #include <osgDB/ReaderWriter>
@@ -91,7 +90,7 @@ private:
 
 void MyErrorHandler(CPLErr , int /*err_no*/, const char *msg)
 {
-    ERROR << "from GDAL:" << msg << "\n";
+    throw std::runtime_error( std::string("from GDAL: ") + msg );
 }
 
 struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
@@ -115,8 +114,10 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
     }
 
     //! @note stupid key="value" parser, value must not contain '"'  
-    ReadResult readNode(const std::string& file_name, const Options* ) const
+    ReadResult readNode(const std::string& file_name, const Options* options) const
     {
+        DEBUG_OUT << (options ? options->getOptionString() : "options null ptr") << "\n";
+        
         if ( !acceptsExtension(osgDB::getLowerCaseFileExtension( file_name )))
             return ReadResult::FILE_NOT_HANDLED;
 
@@ -127,23 +128,12 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         DEBUG_OUT << "connecting to postgis...\n";
         timer.setStartTick();
 
-        typedef std::map< std::string, std::string > AttributeMap;
-        AttributeMap am;
         std::stringstream line(file_name);
-        std::string key, value;
-        while (    std::getline( line, key, '=' ) 
-                && std::getline( line, value, '"' ) 
-                && std::getline( line, value, '"' )){
-            // remove spaces in key
-            key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
-            value = unescapeXMLString(value);
-            DEBUG_OUT << "key=\"" << key << "\" value=\"" << value << "\"\n";
-            am.insert( std::make_pair( key, value ) );
-        }
+        AttributeMap am(line);
 
-        PostgisConnection conn( am["conn_info"] );
+        PostgisConnection conn( am.value("conn_info") );
         if (!conn){
-            std::cerr << "failed to open database with conn_info=\"" << am["conn_info"] << "\"\n";
+            std::cerr << "failed to open database with conn_info=\"" << am.value("conn_info") << "\"\n";
             return ReadResult::FILE_NOT_FOUND;
         }
 
@@ -152,9 +142,9 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         DEBUG_OUT << "execute request...\n";
         timer.setStartTick();
 
-        PostgisConnection::QueryResult res( conn, am["query"].c_str() );
+        PostgisConnection::QueryResult res( conn, am.value("query").c_str() );
         if (!res){
-            std::cerr << "failed to execute query=\"" <<  am["query"] << "\" : " << res.error() << "\n";
+            std::cerr << "failed to execute query=\"" <<  am.value("query") << "\" : " << res.error() << "\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
@@ -168,17 +158,14 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         osg::Matrixd layerToWord;
         osg::Vec3d origin;
         {
-            if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
-                std::cerr << "failed to obtain origin=\""<< am["origin"] <<"\"\n";
+            if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
+                std::cerr << "failed to obtain origin=\""<< am.value("origin") <<"\"\n";
                 return ReadResult::ERROR_IN_READING_FILE;
             }
             layerToWord.makeTranslate( -origin );
         }
 
-        std::string geocolumn( "geom" );
-        if ( am.find("geocolumn") != am.end() ) {
-            geocolumn = am["geocolumn"];
-        }
+        const std::string geocolumn = am.optionalValue("geocolumn").empty() ? "geom" : am.value("geocolumn");
 
         const int geomIdx   = PQfnumber(res.get(),  geocolumn.c_str() );
 
@@ -186,18 +173,18 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         const int heightIdx = PQfnumber(res.get(),  "height" );
         const int widthIdx  = PQfnumber(res.get(),  "width");
 
-        Stack3d::Viewer::Mesh mesh( layerToWord );
+        osgGIS::Mesh mesh( layerToWord );
 
         if (geomIdx >= 0){ // we have a geom column, we create the model from it 
             for( int i=0; i<numFeatures; i++ ) {
-                mesh.push_back( Stack3d::Viewer::WKB( PQgetvalue( res.get(), i, geomIdx ) ) );
+                mesh.push_back( osgGIS::WKB( PQgetvalue( res.get(), i, geomIdx ) ) );
             }
         }
         else if ( posIdx >= 0 && heightIdx >= 0 && widthIdx >=0 ){ // we draw bars instead of geom
             for( int i=0; i<numFeatures; i++ ) {
                 const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
                 const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
-                mesh.addBar( Stack3d::Viewer::WKB( PQgetvalue( res.get(), i, posIdx ) ), w, w, h);
+                mesh.addBar( osgGIS::WKB( PQgetvalue( res.get(), i, posIdx ) ), w, w, h);
             }
         } 
         else {
@@ -207,8 +194,8 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
 
         osg::ref_ptr< osg::Geometry > geom = mesh.createGeometry();
 
-        if (!am["elevation"].empty()) {
-            Dataset raster( am["elevation"].c_str() );
+        if (!am.optionalValue("elevation").empty()) {
+            Dataset raster( am.value("elevation").c_str() );
             double transform[6];
             raster->GetGeoTransform( transform );
             const int pixelWidth = raster->GetRasterXSize();

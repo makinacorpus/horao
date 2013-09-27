@@ -37,7 +37,7 @@ import math
 
 qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
 
-SIMPLEVIEWER_BIN = qset.value( "simpleviewer_path", "simpleViewerd" )
+SIMPLEVIEWER_BIN = qset.value( "horaoviewer_path", "horaoViewerd" )
 
 # Turn to true to activate draping by the viewer
 DEM_VIEWER_DRAPING = qset.value( "dem_viewer_draping", True )
@@ -47,10 +47,10 @@ Z_VECTOR_FIGHT_GAP = qset.value( "z_vector_fight", .5 )
 # distance, in meters on top of DEM layer
 Z_DEM_FIGHT_GAP = qset.value( "z_dem_fight", 1.5 )
 # tile size
-TILE_SIZE = qset.value( "tile_size", 1000 )
+TILE_SIZE = qset.value( "tile_size", 2000 )
 
 # will create the settings file if not present
-qset.setValue( "simpleviewer_path", SIMPLEVIEWER_BIN )
+qset.setValue( "horaoviewer_path", SIMPLEVIEWER_BIN )
 
 WIN_TITLE = "Canvas3D"
 

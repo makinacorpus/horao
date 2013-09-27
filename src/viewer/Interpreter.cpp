@@ -30,7 +30,6 @@ void Interpreter::run()
     std::ifstream ifs( _inputFile.c_str() );
     if ( !_inputFile.empty() && !ifs ){
         const std::string msg = "cannot open '" + _inputFile + "'";
-        ERROR << msg << "\n";
         std::cout << "<error msg=\""<< escapeXMLString(msg) << "\"/>\n";
     }
     std::string line;
@@ -54,15 +53,7 @@ void Interpreter::run()
         std::string cmd;
         std::getline( ls, cmd, ' ' );
 
-        AttributeMap am;
-        std::string key, value;
-        while (    std::getline( ls, key, '=' ) 
-                && std::getline( ls, value, '"' ) 
-                && std::getline( ls, value, '"' )){
-            // remove spaces in key
-            key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
-            am[ key ] = unescapeXMLString( value );
-        }
+        AttributeMap am(ls);
 
         if ( "help" == cmd ){
             help();
@@ -74,7 +65,6 @@ void Interpreter::run()
                 std::cout << "<ok/>\n";\
             }\
             catch (std::exception & e){\
-                ERROR << e.what() << "\n";\
                 std::cout << "<error msg=\""<< escapeXMLString(e.what()) << "\"/>\n";\
             }\
         }
@@ -93,7 +83,6 @@ void Interpreter::run()
         COMMAND(writeFile)
         else{
             const std::string msg = "unknown command '" + cmd + "'";
-            ERROR << msg << "\n";
             std::cout << "<error msg=\"" << escapeXMLString(msg) << "\"/>\n";
         }
 #undef COMMAND
@@ -121,7 +110,7 @@ void Interpreter::lookAt( const AttributeMap & am )
         if ( !( std::stringstream( am.value("eye") ) >> eye.x() >> eye.y() >> eye.z() ) 
            ||!( std::stringstream( am.value("center") ) >> center.x() >> center.y() >> center.z() )
            ||!( std::stringstream( am.value("up") ) >> up.x() >> up.y() >> up.z() )){
-            throw Exception("cannot parse eye, center or up");
+            throw std::runtime_error("cannot parse eye, center or up");
         }
 
         _viewer->setLookAt( eye, center, up );
@@ -129,7 +118,7 @@ void Interpreter::lookAt( const AttributeMap & am )
     else {
         osg::Vec3d origin;
         if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
-            throw Exception("cannot parse origin");
+            throw std::runtime_error("cannot parse origin");
         }
 
         float xmin, ymin, xmax, ymax;
@@ -138,7 +127,7 @@ void Interpreter::lookAt( const AttributeMap & am )
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            throw Exception("cannot parse extent");
+            throw std::runtime_error("cannot parse extent");
         }
         _viewer->lookAtExtent( xmin - origin.x(), 
                                ymin - origin.y(), 
@@ -151,12 +140,12 @@ void Interpreter::loadFile( const AttributeMap & am )
 {
     osg::Vec3d origin;
     if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
-        throw Exception("cannot parse origin");
+        throw std::runtime_error("cannot parse origin");
     }
 
     osg::ref_ptr< osg::Node > node = osgDB::readNodeFile( am.value("file") );
 
-    if (!node.get()) throw Exception("cannot create geometry from '" + am.value("file") + "'");
+    if (!node.get()) throw std::runtime_error("cannot create geometry from '" + am.value("file") + "'");
 
     osg::ref_ptr< osg::PositionAttitudeTransform > tr = new osg::PositionAttitudeTransform;
     tr->setPosition( -origin );
@@ -170,7 +159,7 @@ void Interpreter::addSky( const AttributeMap & am )
 {
     double radius;
     if (!(std::stringstream( am.value("radius") ) >> radius ) ){
-        throw Exception("cannot parse radius=\"" + am.value("radius") + "\"");
+        throw std::runtime_error("cannot parse radius=\"" + am.value("radius") + "\"");
     }
 
     osg::ref_ptr<osg::Geode> geode = new osg::Geode;
@@ -178,7 +167,7 @@ void Interpreter::addSky( const AttributeMap & am )
 
 #define OPEN_IMAGE_OR_THROW( prefix )\
     osg::Image* prefix = osgDB::readImageFile( std::string(#prefix) + "_" + am.value("image"));\
-    if (!prefix) throw Exception("cannot reade image file '" + std::string(#prefix) + "_" + am.value("image") + "'");
+    if (!prefix) throw std::runtime_error("cannot reade image file '" + std::string(#prefix) + "_" + am.value("image") + "'");
 
     OPEN_IMAGE_OR_THROW(posX)
     OPEN_IMAGE_OR_THROW(negX)
@@ -204,12 +193,12 @@ void Interpreter::addPlane( const AttributeMap & am )
     if ( !(ext >> xmin >> ymin)
         || !std::getline(ext, l, ',')
         || !(ext >> xmax >> ymax) ) {
-        throw Exception("cannot parse extent");
+        throw std::runtime_error("cannot parse extent");
     }
 
     osg::Vec3d origin;
     if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
-        throw Exception("cannot parse origin");
+        throw std::runtime_error("cannot parse origin");
     }
 
     osg::ref_ptr<osg::Box> unitCube = new osg::Box( osg::Vec3(xmin, ymin, 0) + osg::Vec3(xmax-xmin, ymax-ymin, 0)*.5f - origin, xmax-xmin, ymax-ymin, 0);
@@ -242,17 +231,17 @@ void Interpreter::loadVectorPostgis(const AttributeMap & am )
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            throw Exception("cannot parse extent");
+            throw std::runtime_error("cannot parse extent");
         }
 
         float tileSize;
         if (!(std::stringstream(am.value("tile_size")) >> tileSize) || tileSize <= 0 ){
-            throw Exception("cannot parse tile_size");
+            throw std::runtime_error("cannot parse tile_size");
         }
 
         osg::Vec3 origin(0,0,0);
         if (!(std::stringstream(am.value("origin")) >> origin.x() >> origin.y() ) ){
-            throw Exception("cannot parse origin");
+            throw std::runtime_error("cannot parse origin");
         }
 
 
@@ -297,7 +286,7 @@ void Interpreter::loadVectorPostgis(const AttributeMap & am )
           + POSTGIS_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
-            throw Exception("cannot create layer");
+            throw std::runtime_error("cannot create layer");
         }
         _viewer->addNode( am.value("id"), node.get() );
     }
@@ -305,7 +294,7 @@ void Interpreter::loadVectorPostgis(const AttributeMap & am )
 
 void Interpreter::loadRasterGDAL(const AttributeMap & )
 {
-    throw Exception("not implemented");
+    throw std::runtime_error("not implemented");
 }
 
 void Interpreter::loadElevation(const AttributeMap & am)
@@ -313,17 +302,14 @@ void Interpreter::loadElevation(const AttributeMap & am)
     // test if an terain db exist (.ive)
     std::string ive(am.value("file"));
     if ( ive.length() <= 4){
-        throw Exception( "file=\"" + ive + "\" filename is too short (missing extension ?)");
+        throw std::runtime_error( "file=\"" + ive + "\" filename is too short (missing extension ?)");
     }
     ive.replace( ive.length() - 4, std::string::npos, ".ive" );
     if ( !osgDB::findDataFile(ive).empty() ){
         AttributeMap amIve( am );
-        amIve["file"] = ive;
+        amIve.setValue("file", ive);
         loadFile(amIve);
         return;
-    }
-    else {
-        WARNING << "did not find '" << ive << "'\n";
     }
 
     // with LOD
@@ -343,17 +329,17 @@ void Interpreter::loadElevation(const AttributeMap & am)
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            throw Exception("cannot parse extent");
+            throw std::runtime_error("cannot parse extent");
         }
 
         float tileSize;
         if (!(std::stringstream(am.value("tile_size")) >> tileSize) || tileSize <= 0 ){
-            throw Exception("cannot parse tile_size");
+            throw std::runtime_error("cannot parse tile_size");
         }
 
         osg::Vec3 origin(0,0,0);
         if (!(std::stringstream(am.value("origin")) >> origin.x() >> origin.y() ) ){
-            throw Exception("cannot parse origin");
+            throw std::runtime_error("cannot parse origin");
         }
 
         const size_t numTilesX = (xmax-xmin)/tileSize + 1;
@@ -395,7 +381,7 @@ void Interpreter::loadElevation(const AttributeMap & am)
             + "extent=\""    + escapeXMLString(am.value("extent"))            + "\" " + MNT_EXTENSION;
         osg::ref_ptr<osg::Node> node = osgDB::readNodeFile( pseudoFile );
         if (!node.get() ){
-            throw Exception("cannot create layer");
+            throw std::runtime_error("cannot create layer");
         }
         _viewer->addNode( am.value("id"), node.get() );
     }
@@ -468,9 +454,38 @@ void Interpreter::setSymbology(const AttributeMap & am)
 
 void Interpreter::setFullExtent(const AttributeMap & )
 {
-    throw Exception("not implemented");
+    throw std::runtime_error("not implemented");
 }
 
+const std::string tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
+{ 
+    const char * spacialMetaComments[] = {"/**WHERE TILE &&", "/**AND TILE &&"};
+
+    bool foundSpatialMetaComment = false;
+    for ( size_t i = 0; i < sizeof(spacialMetaComments)/sizeof(char *); i++ ){
+        const size_t where = query.find(spacialMetaComments[i]);
+        if ( where != std::string::npos )
+        {
+            foundSpatialMetaComment = true;
+            query.replace (where, 3, "");
+            const size_t end = query.find("*/", where);
+            if ( end == std::string::npos ){
+                throw std::runtime_error("unended comment in query");
+            }
+            query.replace (end, 2, "");
+            
+            std::stringstream bbox;
+            bbox << "ST_MakeEnvelope(" << xmin << "," << ymin << "," << xmax << "," << ymax << ")";
+            const size_t tile = query.find("TILE", where);
+            assert( tile != std::string::npos );
+            query.replace( tile, 4, bbox.str().c_str() ); 
+        }
+    }
+
+    if (!foundSpatialMetaComment) throw std::runtime_error("did not found spatial meta comment in query (necessary for tiling)");
+
+    return query;
+}
 
 }
 }

@@ -10,11 +10,8 @@
 #include <osgUtil/Optimizer>
 #include <osgTerrain/Terrain>
 
-#include <iostream>
 #include <iomanip>
 #include <sstream>
-#include <algorithm>
-#include <map>
 #include <cassert>
 
 #include <gdal/gdal_priv.h>
@@ -82,56 +79,45 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
         DEBUG_OUT << "loading...\n";
         timer.setStartTick();
 
-        typedef std::map< std::string, std::string > AttributeMap;
-        AttributeMap am;
         std::stringstream line(file_name);
-        std::string key, value;
-        while (    std::getline( line, key, '=' ) 
-                && std::getline( line, value, '"' ) 
-                && std::getline( line, value, '"' )){
-            // remove spaces in key
-            key.erase( remove_if(key.begin(), key.end(), isspace ), key.end());
-            value = unescapeXMLString(value);
-            DEBUG_OUT << "key=\"" << key << "\" value=\"" << value << "\"\n";
-            am.insert( std::make_pair( key, value ) );
-        }
+        AttributeMap am(line);
 
         // define transfo  layerToWord
         //osg::Matrixd layerToWord;
         //{
         osg::Vec3d origin;
-        if ( !( std::stringstream( am["origin"] ) >> origin.x() >> origin.y() >> origin.z() ) ){
-            ERROR << "failed to obtain origin=\"" << am["origin"] <<"\"\n";
+        if ( !( std::stringstream( am.value("origin") ) >> origin.x() >> origin.y() >> origin.z() ) ){
+            ERROR << "failed to obtain origin=\"" << am.value("origin") <<"\"\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
         //layerToWord.makeTranslate( -origin );
         //}
 
         double xmin, ymin, xmax, ymax;
-        std::stringstream ext( am["extent"] );
+        std::stringstream ext( am.value("extent") );
         std::string l;
         if ( !(ext >> xmin >> ymin)
             || !std::getline(ext, l, ',')
             || !(ext >> xmax >> ymax) ) {
-            ERROR << "cannot parse extent=\"" << am["extent"] << "\"\n";;
+            ERROR << "cannot parse extent=\"" << am.value("extent") << "\"\n";;
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
         if ( xmin > xmax || ymin > ymax ){
-            ERROR << "cannot parse extent=\"" << am["extent"] << "\" xmin must be inferior to xmax and ymin to ymax in extend=\"min ymin,xmax ymx\"\n";;
+            ERROR << "cannot parse extent=\"" << am.value("extent") << "\" xmin must be inferior to xmax and ymin to ymax in extend=\"min ymin,xmax ymx\"\n";;
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
         double meshSize;
-        if ( !(std::istringstream( am["mesh_size"] ) >> meshSize ) ){
-            ERROR << "cannot parse mesh_size=\"" << am["mesh_size"] << "\"\n";
+        if ( !(std::istringstream( am.value("mesh_size") ) >> meshSize ) ){
+            ERROR << "cannot parse mesh_size=\"" << am.value("mesh_size") << "\"\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
 
-        Dataset raster( am["file"].c_str() );
+        Dataset raster( am.value("file").c_str() );
 
         if ( ! raster ) {
-            ERROR << "cannot open dataset from file=\"" << am["file"] << "\"\n";
+            ERROR << "cannot open dataset from file=\"" << am.value("file") << "\"\n";
             return ReadResult::ERROR_IN_READING_FILE;
         }
         if ( raster->GetRasterCount() < 1 ) {
@@ -190,19 +176,6 @@ struct ReaderWriterMNT : osgDB::ReaderWriter
             << "\n"; 
         DEBUG_OUT << " x=" << x << " y=" << y << " w=" << w << " h=" << h << " Lx=" << Lx  << " Ly=" << Ly << "\n"; 
 
-        //if ( x<0 || y<0 || (x + w) > pixelWidth || (y + h) > pixelHeight ){
-        //    ERROR << "specified extent=\"" << am["extent"] 
-        //        << "\" is not covered by file=\"" << am["file"] 
-        //        << "\" (file extend=\"" 
-        //        << std::setprecision(16)
-        //        << originX << " " << originY + pixelHeight * transform[5] << "," 
-        //        << originX + pixelWidth * transform[1] << " "
-        //        <<  originY << "\")\n ";
-        //    return ReadResult::ERROR_IN_READING_FILE;
-        //}
-
-        //assert( x >= 0 && x + w <= pixelWidth );
-        //assert( y >= 0 && y + h <= pixelHeight );
         assert( h >= 0 && w >= 0 );
 
         osg::ref_ptr<osg::HeightField> hf( new osg::HeightField() );

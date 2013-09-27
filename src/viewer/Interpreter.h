@@ -2,7 +2,7 @@
 #define STACK3D_VIEWER_INTERPRETER_H
 
 #include "ViewerWidget.h"
-#include "Log.h"
+#include "StringUtils.h"
 
 #include <osg/Node>
 
@@ -16,23 +16,6 @@ namespace Viewer {
 struct Interpreter: public OpenThreads::Thread
 {
     Interpreter( volatile ViewerWidget * , const std::string & fileName = "" );
-
-    struct AttributeMap: std::map< std::string, std::string >
-    {
-        const std::string value( const std::string & key ) const
-        {
-            const const_iterator found = find( key );
-            if ( found == end() ) throw Exception("cannot find attribute '" + key + "'");
-
-            return found->second;
-        }
-
-        const std::string optionalValue( const std::string & key ) const
-        {
-            const const_iterator found = find( key );
-            return found == end() ? "" : found->second;
-        }
-    };
 
     void run(); // virtual in OpenThreads::Thread
 
@@ -77,37 +60,7 @@ private:
     const std::string _inputFile;
 };
 
-inline
-const std::string 
-tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax )
-{ 
-    const char * spacialMetaComments[] = {"/**WHERE TILE &&", "/**AND TILE &&"};
-
-    bool foundSpatialMetaComment = false;
-    for ( size_t i = 0; i < sizeof(spacialMetaComments)/sizeof(char *); i++ ){
-        const size_t where = query.find(spacialMetaComments[i]);
-        if ( where != std::string::npos )
-        {
-            foundSpatialMetaComment = true;
-            query.replace (where, 3, "");
-            const size_t end = query.find("*/", where);
-            if ( end == std::string::npos ){
-                throw Exception("unended comment in query");
-            }
-            query.replace (end, 2, "");
-            
-            std::stringstream bbox;
-            bbox << "ST_MakeEnvelope(" << xmin << "," << ymin << "," << xmax << "," << ymax << ")";
-            const size_t tile = query.find("TILE", where);
-            assert( tile != std::string::npos );
-            query.replace( tile, 4, bbox.str().c_str() ); 
-        }
-    }
-
-    if (!foundSpatialMetaComment) throw ("did not found spatial meta comment in query (necessary for tiling)");
-
-    return query;
-}
+const std::string tileQuery( std::string query, float xmin, float ymin, float xmax, float ymax );
 
 }
 }

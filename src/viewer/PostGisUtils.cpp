@@ -19,14 +19,11 @@
 
 #include "PostGisUtils.h"
 
-#include "Log.h"
-
 #include <GL/glu.h>
 
 extern "C" {
 #include <liblwgeom.h>
 }
-
 
 #include <boost/format.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -34,12 +31,18 @@ extern "C" {
 #include <boost/graph/undirected_dfs.hpp>
 #include <boost/noncopyable.hpp>
 
+// poly2tri gives better triangulation (delauny) than GLUtesselator 
+// in about twice the time (wich is really good)
+// but since it's not robust, even with valid geometries (touching rings), 
+// we keep it for latter use
 //#define POLY2TRI
 #ifdef POLY2TRI
 #include "../poly2tri/poly2tri.h"
 #include <memory>
 #include <iomanip>
 #endif
+
+namespace osgGIS{
 
 //! custom error reporter for liblwgeom
 inline
@@ -70,9 +73,6 @@ const struct LwgeomInitialiser
     }
 } iAmJustAnInstanceSuchThatTheCtorIsExecuted;
 
-namespace Stack3d {
-namespace Viewer {
-
 
 // utility class for RAII of LWGEOM
 struct Lwgeom
@@ -102,152 +102,9 @@ std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
     return o;
 }
 
-// we do that orselves since an osg::Box for each feature is really slow
-void Mesh::addBar( WKB center, float width, float depth, float height )
-{
-
-    Lwgeom lwgeom( center );
-    if ( !lwgeom.get() ) return; // the error reporter takes care of errors
-    LWPOINT * lwpoint = lwgeom_as_lwpoint( lwgeom.get() );
-    if( !lwpoint ) throw std::runtime_error("failed to get points from WKB");
-
-    const POINT3DZ p = getPoint3dz( lwpoint->point, 0 );
-    const osg::Vec3 ctr(p.x, p.y, p.z);
-
-    // we build a bevelled box, without a bottom
-    // it's base is centerd on origin
-
-    const float x = .5f*width;
-    const float y = .5f*depth;
-    const float e = width/20;
-
-    const unsigned o = unsigned(_vtx.size());
-    // vertex indices for base, top of the side faces and cap
-    const unsigned b[8] = { o, o+1, o+2, o+3, o+4, o+5, o+6, o+7 }; 
-    const unsigned t[8] = { o+8, o+9, o+10, o+11, o+12, o+13, o+14, o+15 };
-    const unsigned c[4] = { o+16, o+17, o+18, o+19 };
-
-    const osg::Vec3 vb[8] = {
-        osg::Vec3(-x+e, -y  , 0),
-        osg::Vec3( x-e, -y  , 0),
-        osg::Vec3( x  , -y+e, 0),
-        osg::Vec3( x  ,  y-e, 0),
-        osg::Vec3( x-e,  y  , 0),
-        osg::Vec3(-x+e,  y  , 0),
-        osg::Vec3(-x  ,  y-e, 0),
-        osg::Vec3(-x  , -y+e, 0)};
-
-    const osg::Vec3 nb[8] = { 
-        osg::Vec3( 0, -1, 0 ),
-        osg::Vec3( 0, -1, 0 ),
-        osg::Vec3( 1,  0, 0 ),
-        osg::Vec3( 1,  0, 0 ),
-        osg::Vec3( 0,  1, 0 ),
-        osg::Vec3( 0,  1, 0 ),
-        osg::Vec3(-1,  0, 0 ),
-        osg::Vec3(-1,  0, 0 )};
-
-    osg::Vec3 vt[8];
-    for (size_t i=0; i<8; i++) vt[i] = vb[i] + osg::Vec3(0,0,height-e);
-
-
-    const osg::Vec3 vc[4] = {
-        osg::Vec3(-x+e, -y+e, height),
-        osg::Vec3( x-e, -y+e, height),
-        osg::Vec3( x-e,  y-e, height),
-        osg::Vec3(-x+e,  y-e, height)};
-
-    const osg::Vec3 nc[4] = {
-        osg::Vec3(0, 0, 1),
-        osg::Vec3(0, 0, 1),
-        osg::Vec3(0, 0, 1),
-        osg::Vec3(0, 0, 1)};
-
-    _vtx.insert(_vtx.end(), vb, vb+8);
-    _nrml.insert(_nrml.end(), nb, nb+8);
-
-    _vtx.insert(_vtx.end(), vt, vt+8);
-    _nrml.insert(_nrml.end(), nb, nb+8); // same nrml as bottom
-
-    _vtx.insert(_vtx.end(), vc, vc+4);
-    _nrml.insert(_nrml.end(), nc, nc+4);
-
-    // sides, loop / indices
-    for (size_t i=0; i<8; i++){
-       _tri.push_back(b[i]);
-       _tri.push_back(b[(i+1)%8]);
-       _tri.push_back(t[i]);
-       _tri.push_back(t[i]);
-       _tri.push_back(b[(i+1)%8]);
-       _tri.push_back(t[(i+1)%8]);
-    }
-    
-    // top
-    _tri.push_back(c[0]);
-    _tri.push_back(c[1]);
-    _tri.push_back(c[2]);
-    _tri.push_back(c[0]);
-    _tri.push_back(c[2]);
-    _tri.push_back(c[3]);
-
-    // top bevel
-    for (size_t i=0; i<4; i++){
-        _tri.push_back(t[(i*2)%8]); 
-        _tri.push_back(t[(i*2+1)%8]); 
-        _tri.push_back(c[i]); 
-        _tri.push_back(c[i]); 
-        _tri.push_back(t[(i*2+1)%8]);
-        _tri.push_back(c[(i+1)%4]); 
-    }
-
-    // top corners
-    for (size_t i=0; i<4; i++){
-        _tri.push_back(t[(i*2+1)%8]); 
-        _tri.push_back(t[(i*2+2)%8]); 
-        _tri.push_back(c[(i+1)%4]);
-    }
-    
-    // translate all vtx by base center
-    const osg::Vec3 bc = ctr*_layerToWord;
-    const size_t sz = _vtx.size();
-    assert( _vtx.size() - o == 20 );
-    for ( size_t i=o; i<sz; i++ ) _vtx[i] += bc;
-}
-
-template<>
-void Mesh::push_back( const LWTRIANGLE * lwtriangle )
-{
-    assert( lwtriangle );
-    const int offset = _vtx.size();
-    for( int v = 0; v < 3; v++ )
-    {
-        const POINT3DZ p3D = getPoint3dz( lwtriangle->points, v );
-        const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
-        _vtx.push_back( p * _layerToWord );
-    }
-
-    for (int i=0; i<3; i++) _tri.push_back( i + offset );
-
-    osg::Vec3 normal( 0.0, 0.0, 0.0 );
-    for ( int i = 0; i < 3; ++i ) {
-       osg::Vec3 pi = _vtx[offset+i];
-       osg::Vec3 pj = _vtx[offset +( (i+1) % 3 ) ];
-       normal[0] += ( pi[1] - pj[1] ) * ( pi[2] + pj[2] );
-       normal[1] += ( pi[2] - pj[2] ) * ( pi[0] + pj[0] );
-       normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
-    }
-    normal.normalize();
-
-    if (( FLAGS_GET_Z( lwtriangle->flags ) == 0 ) && ( normal[2] < 0 )) {
-        // if this is a 2D surface and the normal is pointing down, reverse the triangle
-        normal[2] = 1;
-        std::swap( _tri[ offset ], _tri[offset + 2] );
-    }
-    for (int i=0; i<3; i++) _nrml.push_back( normal );
-}
-
 
 #ifdef POLY2TRI
+
 struct Validity {
     /**
      * @note the class has private ctor to force the use of functions valid() and invalid(reason) that are clearer in the code than to remember that "Valid constructed with a reason is invalid"
@@ -543,7 +400,7 @@ size_t nbIntersections( const Ring2d & ring1, const Ring2d & ring2 )
             else if ( inter.dimension() == 2 ) return INF; 
         }
     }
-    if (set.size() == 1) DEBUG_TRACE << "one contact point between two rings\n";
+    //if (set.size() == 1) DEBUG_TRACE << "one contact point between two rings\n";
     return set.size();
 }
 
@@ -683,11 +540,10 @@ void Mesh::push_back( const LWPOLY * lwpoly )
     Validity validity( isValid( poly, base, poly2d ) );
     if (!validity){
         //! todo draw lines for rings but no contour
-        char * wkt = lwgeom_to_wkt(lwpoly_as_lwgeom(lwpoly), WKT_EXTENDED, 16, NULL);
-        ERROR << "invalid polygon (" << validity.reason() << ") :" << wkt << "\n";
-        free(wkt);
-        return;
-        //throw Exception( "invalid polygon (" + validity.reason() + ")" );
+        //wkt = lwgeom_to_wkt(lwpoly_as_lwgeom(lwpoly), WKT_EXTENDED, 16, NULL);
+        //ERROR << "invalid polygon (" << validity.reason() << ") :" << wkt << "\n";
+        //free(wkt);
+        throw std::runtime_error( "invalid polygon (" + validity.reason() + ")" );
     }
 
     const osg::Vec3 normal = base[2];
@@ -731,8 +587,7 @@ void Mesh::push_back( const LWPOLY * lwpoly )
     }
     catch (std::exception & e)
     {
-        ERROR << "from poly2tri: " << e.what() << "\n";
-        return;
+        throw std::runtime_error( std::string("from poly2tri: ") + e.what() );
     }
 
     std::vector<p2t::Triangle*> triangles(cdt->GetTriangles());
@@ -771,7 +626,7 @@ void CALLBACK tessEndCB(GLenum which)
 void CALLBACK tessErrorCB(GLenum errorCode)
 {
     const GLubyte * errorStr = gluErrorString(errorCode);
-    throw Exception(reinterpret_cast<const char *>(errorStr));
+    throw std::runtime_error(reinterpret_cast<const char *>(errorStr));
 }
 
 void CALLBACK tessVertexCB(const GLdouble *vtx, void *data)
@@ -854,7 +709,7 @@ void Mesh::push_back( const LWPOLY * lwpoly )
         globalVtxForGlu.clear(); // should keep allocated (reserved memory)
     }
     catch (std::exception & e){
-        WARNING << "cannot tesselate polygon: " << e.what() << "\n";
+        std::cerr << "warnig: cannot tesselate polygon: " << e.what() << "\n";
         // undo modifications to _tri and _vtx
         _tri.resize(size);
         _vtx.resize(size);
@@ -894,6 +749,152 @@ void Mesh::push_back( const LWPOLY * lwpoly )
 }
 #endif
 
+
+
+// we create the box triangles ourselves since an osg::Box for each feature is really slow
+void Mesh::addBar( WKB center, float width, float depth, float height )
+{
+
+    Lwgeom lwgeom( center );
+    if ( !lwgeom.get() ) return; // the error reporter takes care of errors
+    LWPOINT * lwpoint = lwgeom_as_lwpoint( lwgeom.get() );
+    if( !lwpoint ) throw std::runtime_error("failed to get points from WKB");
+
+    const POINT3DZ p = getPoint3dz( lwpoint->point, 0 );
+    const osg::Vec3 ctr(p.x, p.y, p.z);
+
+    // we build a bevelled box, without a bottom
+    // it's base is centerd on origin
+
+    const float x = .5f*width;
+    const float y = .5f*depth;
+    const float e = width/20;
+
+    const unsigned o = unsigned(_vtx.size());
+    // vertex indices for base, top of the side faces and cap
+    const unsigned b[8] = { o, o+1, o+2, o+3, o+4, o+5, o+6, o+7 }; 
+    const unsigned t[8] = { o+8, o+9, o+10, o+11, o+12, o+13, o+14, o+15 };
+    const unsigned c[4] = { o+16, o+17, o+18, o+19 };
+
+    const osg::Vec3 vb[8] = {
+        osg::Vec3(-x+e, -y  , 0),
+        osg::Vec3( x-e, -y  , 0),
+        osg::Vec3( x  , -y+e, 0),
+        osg::Vec3( x  ,  y-e, 0),
+        osg::Vec3( x-e,  y  , 0),
+        osg::Vec3(-x+e,  y  , 0),
+        osg::Vec3(-x  ,  y-e, 0),
+        osg::Vec3(-x  , -y+e, 0)};
+
+    const osg::Vec3 nb[8] = { 
+        osg::Vec3( 0, -1, 0 ),
+        osg::Vec3( 0, -1, 0 ),
+        osg::Vec3( 1,  0, 0 ),
+        osg::Vec3( 1,  0, 0 ),
+        osg::Vec3( 0,  1, 0 ),
+        osg::Vec3( 0,  1, 0 ),
+        osg::Vec3(-1,  0, 0 ),
+        osg::Vec3(-1,  0, 0 )};
+
+    osg::Vec3 vt[8];
+    for (size_t i=0; i<8; i++) vt[i] = vb[i] + osg::Vec3(0,0,height-e);
+
+
+    const osg::Vec3 vc[4] = {
+        osg::Vec3(-x+e, -y+e, height),
+        osg::Vec3( x-e, -y+e, height),
+        osg::Vec3( x-e,  y-e, height),
+        osg::Vec3(-x+e,  y-e, height)};
+
+    const osg::Vec3 nc[4] = {
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1),
+        osg::Vec3(0, 0, 1)};
+
+    _vtx.insert(_vtx.end(), vb, vb+8);
+    _nrml.insert(_nrml.end(), nb, nb+8);
+
+    _vtx.insert(_vtx.end(), vt, vt+8);
+    _nrml.insert(_nrml.end(), nb, nb+8); // same nrml as bottom
+
+    _vtx.insert(_vtx.end(), vc, vc+4);
+    _nrml.insert(_nrml.end(), nc, nc+4);
+
+    // sides, loop / indices
+    for (size_t i=0; i<8; i++){
+       _tri.push_back(b[i]);
+       _tri.push_back(b[(i+1)%8]);
+       _tri.push_back(t[i]);
+       _tri.push_back(t[i]);
+       _tri.push_back(b[(i+1)%8]);
+       _tri.push_back(t[(i+1)%8]);
+    }
+    
+    // top
+    _tri.push_back(c[0]);
+    _tri.push_back(c[1]);
+    _tri.push_back(c[2]);
+    _tri.push_back(c[0]);
+    _tri.push_back(c[2]);
+    _tri.push_back(c[3]);
+
+    // top bevel
+    for (size_t i=0; i<4; i++){
+        _tri.push_back(t[(i*2)%8]); 
+        _tri.push_back(t[(i*2+1)%8]); 
+        _tri.push_back(c[i]); 
+        _tri.push_back(c[i]); 
+        _tri.push_back(t[(i*2+1)%8]);
+        _tri.push_back(c[(i+1)%4]); 
+    }
+
+    // top corners
+    for (size_t i=0; i<4; i++){
+        _tri.push_back(t[(i*2+1)%8]); 
+        _tri.push_back(t[(i*2+2)%8]); 
+        _tri.push_back(c[(i+1)%4]);
+    }
+    
+    // translate all vtx by base center
+    const osg::Vec3 bc = ctr*_layerToWord;
+    const size_t sz = _vtx.size();
+    assert( _vtx.size() - o == 20 );
+    for ( size_t i=o; i<sz; i++ ) _vtx[i] += bc;
+}
+
+template<>
+void Mesh::push_back( const LWTRIANGLE * lwtriangle )
+{
+    assert( lwtriangle );
+    const int offset = _vtx.size();
+    for( int v = 0; v < 3; v++ )
+    {
+        const POINT3DZ p3D = getPoint3dz( lwtriangle->points, v );
+        const osg::Vec3d p( p3D.x, p3D.y, p3D.z );
+        _vtx.push_back( p * _layerToWord );
+    }
+
+    for (int i=0; i<3; i++) _tri.push_back( i + offset );
+
+    osg::Vec3 normal( 0.0, 0.0, 0.0 );
+    for ( int i = 0; i < 3; ++i ) {
+       osg::Vec3 pi = _vtx[offset+i];
+       osg::Vec3 pj = _vtx[offset +( (i+1) % 3 ) ];
+       normal[0] += ( pi[1] - pj[1] ) * ( pi[2] + pj[2] );
+       normal[1] += ( pi[2] - pj[2] ) * ( pi[0] + pj[0] );
+       normal[2] += ( pi[0] - pj[0] ) * ( pi[1] + pj[1] );
+    }
+    normal.normalize();
+
+    if (( FLAGS_GET_Z( lwtriangle->flags ) == 0 ) && ( normal[2] < 0 )) {
+        // if this is a 2D surface and the normal is pointing down, reverse the triangle
+        normal[2] = 1;
+        std::swap( _tri[ offset ], _tri[offset + 2] );
+    }
+    for (int i=0; i<3; i++) _nrml.push_back( normal );
+}
+
 template< typename MULTITYPE >
 void Mesh::push_back( const MULTITYPE * lwmulti )
 {
@@ -932,14 +933,14 @@ void Mesh::push_back( const LWGEOM * lwgeom )
 void Mesh::push_back( WKT wkt )
 {
     Lwgeom lwgeom( wkt );
-    if (!lwgeom.get()) return; // error reporter will take care of errors
+    assert(lwgeom.get()); // error reporter will take care of errors
     push_back( lwgeom.get() );
 }
 
 void Mesh::push_back( WKB wkb )
 {
     Lwgeom lwgeom( wkb );
-    if (!lwgeom.get()) return; // error reporter will take care of errors
+    assert(lwgeom.get()); // error reporter will take care of errors
     push_back( lwgeom.get() );
 }
 
@@ -957,8 +958,6 @@ osg::Geometry * Mesh::createGeometry() const
     osg::ref_ptr<osg::DrawElementsUInt> elem = new osg::DrawElementsUInt( GL_TRIANGLES, _tri.begin(), _tri.end() );
     multi->addPrimitiveSet( elem.get() );
     return multi.release();
-}
-
 }
 
 }

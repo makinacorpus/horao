@@ -1,5 +1,4 @@
 #include "ViewerWidget.h"
-#include "Log.h"
 
 #include <osg/CullFace>
 #include <osg/Material>
@@ -14,6 +13,7 @@
 #include <osg/Texture2D>
 
 #include <cassert>
+#include <stdexcept>
 #define WINDOW_WIDTH 800
 #define WINDOW_HEIGHT 800
 namespace Stack3d {
@@ -49,7 +49,6 @@ const char* fragSourceSSAO
 "}\n"
 "\n"
 };
-
 
 
 ViewerWidget::ViewerWidget():
@@ -241,7 +240,7 @@ void ViewerWidget::setStateSet( const std::string& nodeId, osg::StateSet * state
 
     const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
     if ( found == that->_nodeMap.end() ){
-        throw Exception("cannot find node '" + nodeId + "'");
+        throw std::runtime_error("cannot find node '" + nodeId + "'");
     }
     found->second->setStateSet( stateset );
 }
@@ -253,7 +252,7 @@ void ViewerWidget::addNode( const std::string& nodeId, osg::Node * node ) volati
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
 
     if ( that->_nodeMap.find( nodeId ) != that->_nodeMap.end() ){
-        throw Exception( "node '" + nodeId + "' already exists");
+        throw std::runtime_error( "node '" + nodeId + "' already exists");
     }
 
     that->_root->addChild( node );
@@ -267,7 +266,7 @@ void ViewerWidget::removeNode(  const std::string& nodeId ) volatile
 
     const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
     if ( found == that->_nodeMap.end() ){
-        throw Exception("cannot find node '" + nodeId + "'");
+        throw std::runtime_error("cannot find node '" + nodeId + "'");
     }
     that->_root->removeChild( found->second.get() );
 }
@@ -279,7 +278,7 @@ void ViewerWidget::setVisible( const std::string& nodeId, bool visible ) volatil
 
     const NodeMap::const_iterator found = that->_nodeMap.find( nodeId );
     if ( found == that->_nodeMap.end() ){
-        throw Exception("cannot find node '" + nodeId + "'");
+        throw std::runtime_error("cannot find node '" + nodeId + "'");
     }
     found->second->setNodeMask(visible ? 0xffffffff : 0x0);
 }
@@ -299,7 +298,7 @@ void ViewerWidget::lookAtExtent( double xmin, double ymin, double xmax, double y
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
     double fovy, aspectRatio, zNear, zFar;
     if (!that->getCamera()->getProjectionMatrixAsPerspective(fovy, aspectRatio, zNear, zFar) )
-        throw Exception("cannot get projection matrix");
+        throw std::runtime_error("cannot get projection matrix");
 
     // compute distance from fovy
     const double fovRad = fovy * M_PI / 180;
@@ -317,7 +316,7 @@ void ViewerWidget::writeFile( const std::string & filename) volatile
 {
     ViewerWidget * that = const_cast< ViewerWidget * >(this);
     OpenThreads::ScopedLock<OpenThreads::Mutex> lock( that->_mutex );
-    if(!osgDB::writeNodeFile( *that->_root, filename )) throw Exception("cannot write '"+ filename + "'");
+    if(!osgDB::writeNodeFile( *that->_root, filename )) throw std::runtime_error("cannot write '"+ filename + "'");
 }
 
 }

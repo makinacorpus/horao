@@ -7,8 +7,7 @@
 
 #include <osg/Geometry>
 
-namespace Stack3d {
-namespace Viewer {
+namespace osgGIS {
 
 //! just encapsulate a cont char * to give it a type since
 //! WKT and WKB are both const char *
@@ -57,7 +56,5 @@ private:
 };
 
 }
-}
-
 #endif
 

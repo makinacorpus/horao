@@ -1,11 +1,9 @@
-add_executable( simpleViewer 
-    main.cpp
+add_library( horao SHARED
     ViewerWidget.cpp
     Interpreter.cpp
     StringUtils.cpp
 )
-set_target_properties( simpleViewer PROPERTIES DEBUG_POSTFIX "d" )
-target_link_libraries( simpleViewer
+target_link_libraries( horao 
 	${OPENSCENEGRAPH_LIBRARIES}  
     ${PostgreSQL_LIBRARY}
     ${LWGEOM_LIBRARY}
@@ -14,11 +12,29 @@ target_link_libraries( simpleViewer
     X11
 )
 
+add_executable( Interpreter_test
+    Interpreter_test.cpp
+)
+set_target_properties( Interpreter_test PROPERTIES DEBUG_POSTFIX "d" )
+target_link_libraries( Interpreter_test
+    horao
+)
+add_test(Interpreter_test ${EXECUTABLE_OUTPUT_PATH}/Interpreter_testd)
+
+add_executable( horaoViewer 
+    main.cpp
+)
+set_target_properties( horaoViewer PROPERTIES DEBUG_POSTFIX "d" )
+target_link_libraries( horaoViewer
+    horao
+)
+
 add_library( osgdb_postgis MODULE 
     ReaderWriterPOSTGIS.cpp 
     PostGisUtils.cpp
 )
 set_target_properties( osgdb_postgis PROPERTIES DEBUG_POSTFIX "d" )
+set_target_properties( osgdb_postgis PROPERTIES PREFIX "")
 target_link_libraries( osgdb_postgis
 	${OPENSCENEGRAPH_LIBRARIES}  
     ${PostgreSQL_LIBRARY}
@@ -28,21 +44,34 @@ target_link_libraries( osgdb_postgis
     ${GDAL_LIBRARY}
     poly2tri
 )
-set_target_properties(osgdb_postgis PROPERTIES PREFIX "")
+
+add_executable( PostGisUtils_test
+    PostGisUtils_test.cpp
+    ${CMAKE_SOURCE_DIR}/src/viewer/PostGisUtils.cpp
+)
+set_target_properties( PostGisUtils_test PROPERTIES DEBUG_POSTFIX "d" )
+target_link_libraries( PostGisUtils_test
+    ${LWGEOM_LIBRARY}
+	${OPENSCENEGRAPH_LIBRARIES}  
+    ${OPENGL_glu_LIBRARY}
+    ${OPENGL_gl_LIBRARY}
+    poly2tri
+)
+add_test(PostGisUtils_test ${EXECUTABLE_OUTPUT_PATH}/PostGisUtils_testd)
 
 add_library( osgdb_mnt MODULE 
     ReaderWriterMNT.cpp 
 )
 set_target_properties( osgdb_mnt PROPERTIES DEBUG_POSTFIX "d" )
+set_target_properties( osgdb_mnt PROPERTIES PREFIX "")
 target_link_libraries( osgdb_mnt
 	${OPENSCENEGRAPH_LIBRARIES}  
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
     ${GDAL_LIBRARY}
 )
-set_target_properties(osgdb_mnt PROPERTIES PREFIX "")
 
-install( TARGETS  simpleViewer osgdb_postgis osgdb_mnt
+install( TARGETS  horaoViewer horao osgdb_postgis osgdb_mnt
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin 
