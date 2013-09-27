@@ -18,9 +18,15 @@
  */
 
 #include "PostGisUtils.h"
+
 #include "Log.h"
 
-#include <osgUtil/Tessellator>
+#include <GL/glu.h>
+
+extern "C" {
+#include <liblwgeom.h>
+}
+
 
 #include <boost/format.hpp>
 #include <boost/graph/adjacency_list.hpp>
@@ -35,9 +41,7 @@
 #include <iomanip>
 #endif
 
-namespace Stack3d {
-namespace Viewer {
-
+//! custom error reporter for liblwgeom
 inline
 void errorreporter(const char* fmt, va_list ap)
 {
@@ -45,91 +49,70 @@ void errorreporter(const char* fmt, va_list ap)
     { 
         ~RaiiCharPtr(){ free(ptr); }
         char * ptr;
-    };
-    RaiiCharPtr msg;
+    } msg;
 
-	if (!lw_vasprintf (&msg.ptr, fmt, ap))
-	{
-		va_end (ap);
-		return;
-	}
-    
-    throw Exception(msg.ptr);
+    if (!lw_vasprintf (&msg.ptr, fmt, ap))
+    {
+        va_end (ap);
+        throw std::runtime_error("unexpected error");
+    }
+
+    va_end (ap);
+	throw std::runtime_error(std::string("from liblwgeom: ")+msg.ptr);
 }
 
-struct LwgeomInitialiser 
+// dummy class INSTANCE (this is a definition, look at the end!) 
+// to ensure initilization is done
+const struct LwgeomInitialiser 
 {
     LwgeomInitialiser(){
         lwgeom_set_handlers(NULL, NULL, NULL, errorreporter, NULL);
     }
-} lwgeomInitialiser; // dummy class to ensure initilization is done
+} iAmJustAnInstanceSuchThatTheCtorIsExecuted;
+
+namespace Stack3d {
+namespace Viewer {
 
 
+// utility class for RAII of LWGEOM
+struct Lwgeom
+{
+    Lwgeom( WKT wkt )
+        : _geom( lwgeom_from_wkt(wkt.get(), LW_PARSER_CHECK_NONE) )
+    {}
+    Lwgeom( WKB wkb )
+        : _geom( lwgeom_from_hexwkb(wkb.get(), LW_PARSER_CHECK_NONE) )
+    {}
+    operator bool() const { return _geom; }
+    const LWGEOM * get() const { return _geom; }
+    const LWGEOM * operator->() const { return _geom; }
+    ~Lwgeom()
+    {
+        if (_geom) lwgeom_free(_geom);
+    }
+private:
+    LWGEOM * _geom;
+};
+
+// for debugging
+inline
+std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
+{
+    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
+    return o;
+}
 
 // we do that orselves since an osg::Box for each feature is really slow
-void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, float height )
+void Mesh::addBar( WKB center, float width, float depth, float height )
 {
-    /*
-    const osg::Vec3 c = center*_layerToWord;
-    const osg::Vec3 v[8] = 
-    { 
-        c + osg::Vec3( -width, -depth, -height )*.5f,
-        c + osg::Vec3(  width, -depth, -height )*.5f, 
-        c + osg::Vec3(  width,  depth, -height )*.5f, 
-        c + osg::Vec3( -width,  depth, -height )*.5f, 
-        c + osg::Vec3( -width, -depth,  height )*.5f, 
-        c + osg::Vec3(  width, -depth,  height )*.5f, 
-        c + osg::Vec3(  width,  depth,  height )*.5f, 
-        c + osg::Vec3( -width,  depth,  height )*.5f 
-    };
-    const int offset = _vtx.size();
-    _vtx.push_back( v[2] );
-    _vtx.push_back( v[1] );
-    _vtx.push_back( v[0] );
-    _vtx.push_back( v[3] );
-    _vtx.push_back( v[2] );
-    _vtx.push_back( v[0] );
-    for (int i=0; i<6; i++) _nrml.push_back( osg::Vec3(  0,  0, -1) );
-    _vtx.push_back( v[4] );
-    _vtx.push_back( v[5] );
-    _vtx.push_back( v[6] );
-    _vtx.push_back( v[4] );
-    _vtx.push_back( v[6] );
-    _vtx.push_back( v[7] );
-    for (int i=0; i<6; i++) _nrml.push_back( osg::Vec3(  0,  0,  1) );
-    _vtx.push_back( v[0] );
-    _vtx.push_back( v[1] );
-    _vtx.push_back( v[4] );
-    _vtx.push_back( v[1] );
-    _vtx.push_back( v[5] );
-    _vtx.push_back( v[4] );
-    for (int i=0; i<6; i++) _nrml.push_back( osg::Vec3(  0, -1,  1) );
-    _vtx.push_back( v[2] );
-    _vtx.push_back( v[3] );
-    _vtx.push_back( v[7] );
-    _vtx.push_back( v[2] );
-    _vtx.push_back( v[7] );
-    _vtx.push_back( v[6] );
-    for (int i=0; i<6; i++) _nrml.push_back( osg::Vec3(  0,  1,  0) );
-    _vtx.push_back( v[7] );
-    _vtx.push_back( v[3] );
-    _vtx.push_back( v[0] );
-    _vtx.push_back( v[4] );
-    _vtx.push_back( v[7] );
-    _vtx.push_back( v[0] );
-    for (int i=0; i<6; i++) _nrml.push_back( osg::Vec3( -1,  0,  0) );
-    _vtx.push_back( v[2] );
-    _vtx.push_back( v[5] );
-    _vtx.push_back( v[1] );
-    _vtx.push_back( v[2] );
-    _vtx.push_back( v[6] );
-    _vtx.push_back( v[5] );
-    for (int i=0; i<6; i++) _nrml.push_back( osg::Vec3(  1,  0,  0) );
-    const int numFaces = 6;
-    const int numTriPerFace = 2;
-    const int numVtxPerTri = 3;
-    for (int i=0; i<numFaces*numTriPerFace*numVtxPerTri; i++) _tri.push_back( i + offset );
-    */
+
+    Lwgeom lwgeom( center );
+    if ( !lwgeom.get() ) return; // the error reporter takes care of errors
+    LWPOINT * lwpoint = lwgeom_as_lwpoint( lwgeom.get() );
+    if( !lwpoint ) throw std::runtime_error("failed to get points from WKB");
+
+    const POINT3DZ p = getPoint3dz( lwpoint->point, 0 );
+    const osg::Vec3 ctr(p.x, p.y, p.z);
 
     // we build a bevelled box, without a bottom
     // it's base is centerd on origin
@@ -225,13 +208,14 @@ void TriangleMesh::addBar( const osg::Vec3 & center, float width, float depth, f
     }
     
     // translate all vtx by base center
-    const osg::Vec3 bc = center*_layerToWord;
+    const osg::Vec3 bc = ctr*_layerToWord;
     const size_t sz = _vtx.size();
     assert( _vtx.size() - o == 20 );
     for ( size_t i=o; i<sz; i++ ) _vtx[i] += bc;
 }
 
-void TriangleMesh::push_back( const LWTRIANGLE * lwtriangle )
+template<>
+void Mesh::push_back( const LWTRIANGLE * lwtriangle )
 {
     assert( lwtriangle );
     const int offset = _vtx.size();
@@ -688,7 +672,7 @@ const Validity isValid( const Poly & poly, osg::Vec3 base[3], std::unique_ptr<Po
     return Validity::valid();
 }
 
-void TriangleMesh::push_back( const LWPOLY * lwpoly )
+void Mesh::push_back( const LWPOLY * lwpoly )
 {
     assert( lwpoly );
     assert( lwpoly->nrings > 0 );
@@ -793,7 +777,7 @@ void CALLBACK tessErrorCB(GLenum errorCode)
 void CALLBACK tessVertexCB(const GLdouble *vtx, void *data)
 {
     // cast back to double type
-    TriangleMesh * that = (TriangleMesh * )data;
+    Mesh * that = (Mesh * )data;
     that->_tri.push_back( that->_vtx.size() );
     that->_vtx.push_back( osg::Vec3( vtx[0], vtx[1], vtx[2] ) );
 }
@@ -832,7 +816,9 @@ struct Tessellator
 
     GLUtesselator * _tess;
 };
-void TriangleMesh::push_back( const LWPOLY * lwpoly )
+
+template<>
+void Mesh::push_back( const LWPOLY * lwpoly )
 {
     assert( lwpoly );
 
@@ -907,8 +893,9 @@ void TriangleMesh::push_back( const LWPOLY * lwpoly )
 
 }
 #endif
+
 template< typename MULTITYPE >
-void TriangleMesh::push_back( const MULTITYPE * lwmulti )
+void Mesh::push_back( const MULTITYPE * lwmulti )
 {
     assert( lwmulti );
     const int numGeom = lwmulti->ngeoms;
@@ -916,7 +903,8 @@ void TriangleMesh::push_back( const MULTITYPE * lwmulti )
 
 }
 
-void TriangleMesh::push_back( const LWGEOM * lwgeom )
+template<>
+void Mesh::push_back( const LWGEOM * lwgeom )
 {
     assert( lwgeom );
     if ( lwgeom_is_empty( lwgeom ) ) return;
@@ -929,19 +917,33 @@ void TriangleMesh::push_back( const LWGEOM * lwgeom )
     case MULTIPOLYGONTYPE:      push_back( lwgeom_as_lwmpoly( lwgeom ) ); break;
     case POLYHEDRALSURFACETYPE: push_back( lwgeom_as_lwpsurface( lwgeom ) ); break;
     case POLYGONTYPE:           push_back( lwgeom_as_lwpoly( lwgeom ) ); break;
-    case POINTTYPE:             assert(false && "POINTTYPE not implemented");
-    case MULTIPOINTTYPE:        assert(false && "MULTIPOINTTYPE not implemented");
-    case LINETYPE:              assert(false && "LINETYPE not implemented");
-    case MULTILINETYPE:         assert(false && "MULTIPOINTTYPE not implemented");
-    case MULTISURFACETYPE:      assert(false && "MULTISURFACETYPE not implemented");
-    case MULTICURVETYPE:        assert(false && "MULTICURVETYPE not implemented");
-    case CIRCSTRINGTYPE:        assert(false && "CIRCSTRINGTYPE not implemented");
-    case COMPOUNDTYPE:          assert(false && "COMPOUNDTYPE not implemented");
-    case CURVEPOLYTYPE:         assert(false && "CURVEPOLYTYPE not implemented");
+    case POINTTYPE:             throw std::runtime_error("POINTTYPE not handled");
+    case MULTIPOINTTYPE:        throw std::runtime_error("MULTIPOINTTYPE not handled");
+    case LINETYPE:              throw std::runtime_error("LINETYPE not handled");
+    case MULTILINETYPE:         throw std::runtime_error("MULTIPOINTTYPE not handled");
+    case MULTISURFACETYPE:      throw std::runtime_error("MULTISURFACETYPE not handled");
+    case MULTICURVETYPE:        throw std::runtime_error("MULTICURVETYPE not handled");
+    case CIRCSTRINGTYPE:        throw std::runtime_error("CIRCSTRINGTYPE not handled");
+    case COMPOUNDTYPE:          throw std::runtime_error("COMPOUNDTYPE not handled");
+    case CURVEPOLYTYPE:         throw std::runtime_error("CURVEPOLYTYPE not handled");
     }
 }
 
-osg::Geometry * TriangleMesh::createGeometry() const
+void Mesh::push_back( WKT wkt )
+{
+    Lwgeom lwgeom( wkt );
+    if (!lwgeom.get()) return; // error reporter will take care of errors
+    push_back( lwgeom.get() );
+}
+
+void Mesh::push_back( WKB wkb )
+{
+    Lwgeom lwgeom( wkb );
+    if (!lwgeom.get()) return; // error reporter will take care of errors
+    push_back( lwgeom.get() );
+}
+
+osg::Geometry * Mesh::createGeometry() const
 {
     osg::ref_ptr<osg::Geometry> multi = new osg::Geometry();
     multi->setUseVertexBufferObjects(true);

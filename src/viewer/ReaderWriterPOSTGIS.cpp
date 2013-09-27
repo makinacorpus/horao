@@ -1,5 +1,6 @@
 #include "PostGisUtils.h"
 #include "StringUtils.h"
+#include "Log.h"
 
 #include <osgDB/FileNameUtils>
 #include <osgDB/ReaderWriter>
@@ -13,13 +14,18 @@
 #include <sstream>
 #include <algorithm>
 #include <map>
+#include <cassert>
 
 #include <gdal/gdal_priv.h>
 #include <gdal/cpl_conv.h>
 
+#include <libpq-fe.h>
+#include <postgres_fe.h>
+#include <catalog/pg_type.h>
+
 #define DEBUG_OUT if (0) std::cerr
 
-// for GDAL RAII
+//! for GDAL RAII
 struct Dataset
 {
     Dataset( const std::string & file )
@@ -37,7 +43,7 @@ private:
     GDALDataset * _raster;
 };
 
-// for RAII of connection
+//! for postgres connection RAII
 struct PostgisConnection
 {
 
@@ -169,8 +175,6 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             layerToWord.makeTranslate( -origin );
         }
 
-        osg::ref_ptr<osg::Geode> group = new osg::Geode();
-
         std::string geocolumn( "geom" );
         if ( am.find("geocolumn") != am.end() ) {
             geocolumn = am["geocolumn"];
@@ -182,61 +186,26 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
         const int heightIdx = PQfnumber(res.get(),  "height" );
         const int widthIdx  = PQfnumber(res.get(),  "width");
 
-        Stack3d::Viewer::TriangleMesh mesh( layerToWord );
+        Stack3d::Viewer::Mesh mesh( layerToWord );
 
         if (geomIdx >= 0){ // we have a geom column, we create the model from it 
             for( int i=0; i<numFeatures; i++ ) {
-                const char * wkb = PQgetvalue( res.get(), i, geomIdx );
-                Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
-                assert( lwgeom.get() );
-                mesh.push_back( lwgeom.get() );
+                mesh.push_back( Stack3d::Viewer::WKB( PQgetvalue( res.get(), i, geomIdx ) ) );
             }
         }
         else if ( posIdx >= 0 && heightIdx >= 0 && widthIdx >=0 ){ // we draw bars instead of geom
             for( int i=0; i<numFeatures; i++ ) {
-                const char * wkb = PQgetvalue( res.get(), i, posIdx );
-                Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
-                assert( lwgeom.get() );
-                LWPOINT * lwpoint = lwgeom_as_lwpoint( lwgeom.get() );
-                if( !lwpoint ){
-                    std::cerr << "failed to get points from column 'pos'\n";
-                    return ReadResult::ERROR_IN_READING_FILE;
-                }
-
-                const POINT3DZ p = getPoint3dz( lwpoint->point, 0 );
                 const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
                 const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
-
-                mesh.addBar( osg::Vec3(p.x, p.y, p.z), w, w, h);
+                mesh.addBar( Stack3d::Viewer::WKB( PQgetvalue( res.get(), i, posIdx ) ), w, w, h);
             }
-
-/*
-            osg::Node * cube = osgDB::readNodeFile("cube.obj");
-            assert(cube->asGroup());
-            for( int i=0; i<numFeatures; i++ ) {
-                const char * wkb = PQgetvalue( res.get(), i, posIdx );
-                Stack3d::Viewer::Lwgeom lwgeom( wkb, Stack3d::Viewer::Lwgeom::WKB() );
-                assert( lwgeom.get() );
-                LWPOINT * lwpoint = lwgeom_as_lwpoint( lwgeom.get() );
-                if( !lwpoint ){
-                    std::cerr << "failed to get points from column 'pos'\n";
-                    return ReadResult::ERROR_IN_READING_FILE;
-                }
-
-                const POINT3DZ p = getPoint3dz( lwpoint->point, 0 );
-                const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
-                //const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
-
-
-                osg::Matrix move;
-                move.makeTranslate( osg::Vec3(p.x, p.y, p.z + h)*layerToWord );
-            }
-*/
         } 
         else {
             std::cerr << "cannot find either 'geom' column or 'height','width' columns\n"; 
             return ReadResult::ERROR_IN_READING_FILE;
         }
+
+        osg::ref_ptr< osg::Geometry > geom = mesh.createGeometry();
 
         if (!am["elevation"].empty()) {
             Dataset raster( am["elevation"].c_str() );
@@ -268,7 +237,9 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
             }
             const double dataScale = band->GetScale( &ok );
             assert(ok);
-            for ( std::vector<osg::Vec3>::iterator v = mesh.begin(); v!=mesh.end(); v++){
+            osg::Vec3Array *vtx = dynamic_cast<osg::Vec3Array*>(geom->getVertexArray());
+            assert( vtx );
+            for ( osg::Vec3Array::iterator v = vtx->begin(); v!=vtx->end(); v++){
                const int posX = int( ( v->x() + origin.x() - originX )*pixelPerMetreX );
                const int posY = int( ( originY - v->y() - origin.y() )*pixelPerMetreY);
                if ( posX >=0 && posX < pixelWidth && posY >= 0 && posY < pixelHeight ){
@@ -276,17 +247,12 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter
                    v->z() = float( (SRCVAL(blockData, dType, 0) * dataScale)  + dataOffset ) - origin.z();
                }
             }
-
-            
         }
-
-
-        group->addDrawable(mesh.createGeometry());
-
-
 
         DEBUG_OUT << "converted " << numFeatures << " features in " << timer.time_s() << "sec\n";
 
+        osg::ref_ptr<osg::Geode> group = new osg::Geode();
+        group->addDrawable(geom.get());
         return group.release();
     }
 };

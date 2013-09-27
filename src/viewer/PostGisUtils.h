@@ -1,76 +1,46 @@
 #ifndef STACK3D_VIEWER_POSTGISUTILS
 #define STACK3D_VIEWER_POSTGISUTILS
 
-#include "Log.h"
-
-#include <cassert>
-#include <GL/glu.h>
-
-#include <osg/Geometry>
-
-#include <libpq-fe.h>
-#include <postgres_fe.h>
-#include <catalog/pg_type.h>
-
-extern "C" {
-#include <liblwgeom.h>
-}
-
 #ifndef CALLBACK
 #define CALLBACK
 #endif
 
+#include <osg/Geometry>
 
 namespace Stack3d {
 namespace Viewer {
 
-//utility class for RAII of LWGEOM
-struct Lwgeom
+//! just encapsulate a cont char * to give it a type since
+//! WKT and WKB are both const char *
+struct ConstCharWrapper
 {
-    struct WKT {};
-    struct WKB {};
-    Lwgeom( const char * wkt, WKT )
-        : _geom( lwgeom_from_wkt(wkt, LW_PARSER_CHECK_NONE) )
-    {}
-    Lwgeom( const char * wkb, WKB )
-        : _geom( lwgeom_from_hexwkb(wkb, LW_PARSER_CHECK_NONE) )
-    {}
-    operator bool() const { return _geom; }
-    const LWGEOM * get() const { return _geom; }
-    const LWGEOM * operator->() const { return _geom; }
-    ~Lwgeom()
-    {
-        if (_geom) lwgeom_free(_geom);
-    }
-private:
-    LWGEOM * _geom;
-
+    // default dtor and cpy are ok
+    ConstCharWrapper( const char * data ):_data( data ) {}
+    const char * get() const { return _data; }
+private :
+    const char * _data ;
 };
 
-inline
-std::ostream & operator<<( std::ostream & o, const osg::Vec3 & v )
+struct WKT: ConstCharWrapper { WKT(const char * data): ConstCharWrapper(data){} };
+struct WKB: ConstCharWrapper { WKB(const char * data): ConstCharWrapper(data){} };
+
+//! @brief build an osg::Geometry from WKT or WKB represenations
+//! @note this structure avoids the creation of many small osg::geometries (slow)
+struct Mesh
 {
-    o << "( " << v.x() << ", " << v.y() << ", " << v.z() << " )";
-    return o;
-}
-
-
-
-// temporary structure to avois creation of many mall osg::geometries (slow)
-struct TriangleMesh
-{
-    TriangleMesh( const osg::Matrixd & layerToWord )
+    //! @param layerToWord transformation from GIS CRS (layer) to OpenGL scene (world)
+    //!        the aim is mainly to center the scene around origin to avoid round-off errors
+    Mesh( const osg::Matrixd & layerToWord )
         : _layerToWord(layerToWord)
     {}
 
-    void push_back( const LWGEOM * );
 
-    void addBar( const osg::Vec3 & center, float width, float depth, float height );
+    void push_back( WKB geometry );
+    void push_back( WKT geometry );
+
+    void addBar( WKB center, float width, float depth, float height );
     
     osg::Geometry * createGeometry() const;
-
-    std::vector<osg::Vec3>::iterator begin(){return _vtx.begin();}
-    std::vector<osg::Vec3>::iterator end(){return _vtx.end();}
 
 private:
     std::vector<osg::Vec3> _vtx;
@@ -78,20 +48,16 @@ private:
     std::vector<unsigned> _tri;
     const osg::Matrixd _layerToWord;
 
-    template< typename MULTITYPE >
-    void push_back( const MULTITYPE * );
+    template< typename GEOM >
+    void push_back( const GEOM * ); // utility fonction, specialised for several types
 
+    //! @note this is needed for glu tesselation to avoid exposing vtx and tri members
     friend void CALLBACK tessVertexCB(const GLdouble *vtx, void *data);
-    friend void CALLBACK tessCombineCB(GLdouble coords[3], GLdouble * vertex_data[4], GLfloat weight[4], void ** outData, void *data);
 
-    void push_back( const LWTRIANGLE * );
-    void push_back( const LWPOLY * );
 };
 
 }
 }
 
-#undef LC
-
-#endif // OSGEARTH_DRIVER_POSTGIS_FEATURE_UTILS
+#endif
 
