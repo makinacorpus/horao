@@ -2,7 +2,7 @@
 #define STACK3D_VIEWER_INTERPRETER_H
 
 #include "ViewerWidget.h"
-#include "StringUtils.h"
+#include <osgGIS/StringUtils.h>
 
 #include <osg/Node>
 

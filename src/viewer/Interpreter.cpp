@@ -1,6 +1,6 @@
 #include "Interpreter.h"
 
-#include "StringUtils.h"
+#include <osgGIS/StringUtils.h>
 #include "SkyBox.h"
 
 #include <osgDB/ReadFile>

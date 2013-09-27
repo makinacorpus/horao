@@ -1,4 +1,4 @@
-#include "viewer/SFosg.h"
+#include "SFosg.h"
 #include "TestGeometry.h"
 
 #include <osgViewer/Viewer>
