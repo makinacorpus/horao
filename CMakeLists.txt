@@ -12,8 +12,8 @@ enable_testing()
 #----------------------------------------------------------------------------
 # Set a default build type if none was specified
 if(NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
-  message(STATUS "Setting build type to 'Release' as none was specified.")
-  set(CMAKE_BUILD_TYPE Release CACHE STRING "Choose the type of build." FORCE)
+    message(STATUS "Setting build type to 'Debug' as none was specified.")
+  set(CMAKE_BUILD_TYPE Debug CACHE STRING "Choose the type of build." FORCE)
   # Set the possible values of build type for cmake-gui
   set_property(CACHE CMAKE_BUILD_TYPE PROPERTY STRINGS "Debug" "Release" "RelWithDebInfo")
 endif()
@@ -55,5 +55,8 @@ elseif(CMAKE_COMPILER_IS_GNUCC OR CMAKE_COMPILER_IS_GNUCXX)
 endif()
 
 add_subdirectory( src )
-add_subdirectory( test )
+add_subdirectory( qgis_plugin )
+
+add_test( Style_test ${CMAKE_SOURCE_DIR}/script/test-style-horao.sh )
+
 

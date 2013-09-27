@@ -1,11 +1,8 @@
-add_executable( simpleViewer 
-    main.cpp
+add_library( horao SHARED
     ViewerWidget.cpp
     Interpreter.cpp
-    StringUtils.cpp
 )
-set_target_properties( simpleViewer PROPERTIES DEBUG_POSTFIX "d" )
-target_link_libraries( simpleViewer
+target_link_libraries( horao 
 	${OPENSCENEGRAPH_LIBRARIES}  
     ${PostgreSQL_LIBRARY}
     ${LWGEOM_LIBRARY}
@@ -14,34 +11,24 @@ target_link_libraries( simpleViewer
     X11
 )
 
-add_library( osgdb_postgis MODULE 
-    ReaderWriterPOSTGIS.cpp 
-    PostGisUtils.cpp
+add_executable( Interpreter_test
+    Interpreter_test.cpp
 )
-set_target_properties( osgdb_postgis PROPERTIES DEBUG_POSTFIX "d" )
-target_link_libraries( osgdb_postgis
-	${OPENSCENEGRAPH_LIBRARIES}  
-    ${PostgreSQL_LIBRARY}
-    ${LWGEOM_LIBRARY}
-    ${OPENGL_glu_LIBRARY}
-    ${OPENGL_gl_LIBRARY}
-    ${GDAL_LIBRARY}
+set_target_properties( Interpreter_test PROPERTIES DEBUG_POSTFIX "d" )
+target_link_libraries( Interpreter_test
+    horao
 )
-set_target_properties(osgdb_postgis PROPERTIES PREFIX "")
+add_test(Interpreter_test ${EXECUTABLE_OUTPUT_PATH}/Interpreter_testd)
 
-add_library( osgdb_mnt MODULE 
-    ReaderWriterMNT.cpp 
+add_executable( horaoViewer 
+    main.cpp
 )
-set_target_properties( osgdb_mnt PROPERTIES DEBUG_POSTFIX "d" )
-target_link_libraries( osgdb_mnt
-	${OPENSCENEGRAPH_LIBRARIES}  
-    ${OPENGL_glu_LIBRARY}
-    ${OPENGL_gl_LIBRARY}
-    ${GDAL_LIBRARY}
+set_target_properties( horaoViewer PROPERTIES DEBUG_POSTFIX "d" )
+target_link_libraries( horaoViewer
+    horao
 )
-set_target_properties(osgdb_mnt PROPERTIES PREFIX "")
 
-install( TARGETS  simpleViewer osgdb_postgis osgdb_mnt
+install( TARGETS  horaoViewer horao 
     ARCHIVE DESTINATION lib
     LIBRARY DESTINATION lib
     RUNTIME DESTINATION bin 
