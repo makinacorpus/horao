@@ -1,4 +1,4 @@
-#include "PostGisUtils.h"
+#include "SFosg.h"
 #include "StringUtils.h"
 
 #include <osgDB/FileNameUtils>
@@ -9,10 +9,7 @@
 #include <osg/MatrixTransform>
 #include <osgUtil/Optimizer>
 
-#include <iostream>
 #include <sstream>
-#include <algorithm>
-#include <map>
 #include <cassert>
 
 #include <gdal/gdal_priv.h>

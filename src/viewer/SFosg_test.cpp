@@ -1,4 +1,4 @@
-#include "viewer/PostGisUtils.h"
+#include "viewer/SFosg.h"
 #include "TestGeometry.h"
 
 #include <osgViewer/Viewer>

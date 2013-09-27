@@ -31,7 +31,7 @@ target_link_libraries( horaoViewer
 
 add_library( osgdb_postgis MODULE 
     ReaderWriterPOSTGIS.cpp 
-    PostGisUtils.cpp
+    SFosg.cpp
 )
 set_target_properties( osgdb_postgis PROPERTIES DEBUG_POSTFIX "d" )
 set_target_properties( osgdb_postgis PROPERTIES PREFIX "")
@@ -45,19 +45,19 @@ target_link_libraries( osgdb_postgis
     poly2tri
 )
 
-add_executable( PostGisUtils_test
-    PostGisUtils_test.cpp
-    ${CMAKE_SOURCE_DIR}/src/viewer/PostGisUtils.cpp
+add_executable( SFosg_test
+    SFosg_test.cpp
+    SFosg.cpp
 )
-set_target_properties( PostGisUtils_test PROPERTIES DEBUG_POSTFIX "d" )
-target_link_libraries( PostGisUtils_test
+set_target_properties( SFosg_test PROPERTIES DEBUG_POSTFIX "d" )
+target_link_libraries( SFosg_test
     ${LWGEOM_LIBRARY}
 	${OPENSCENEGRAPH_LIBRARIES}  
     ${OPENGL_glu_LIBRARY}
     ${OPENGL_gl_LIBRARY}
     poly2tri
 )
-add_test(PostGisUtils_test ${EXECUTABLE_OUTPUT_PATH}/PostGisUtils_testd)
+add_test(SFosg_test ${EXECUTABLE_OUTPUT_PATH}/SFosg_testd)
 
 add_library( osgdb_mnt MODULE 
     ReaderWriterMNT.cpp 
