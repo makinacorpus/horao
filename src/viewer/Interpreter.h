@@ -13,9 +13,8 @@
 namespace Stack3d {
 namespace Viewer {
 
-struct Interpreter: public OpenThreads::Thread
-{
-    Interpreter( volatile ViewerWidget * , const std::string & fileName = "" );
+struct Interpreter: public OpenThreads::Thread {
+    Interpreter( volatile ViewerWidget* , const std::string& fileName = "" );
 
     void run(); // virtual in OpenThreads::Thread
 
@@ -24,38 +23,38 @@ struct Interpreter: public OpenThreads::Thread
     // to allow to interactively modify the map.
     // The first thing to do is to create the map with an <option> section
     void help() const {
-        std::cout 
-            << "    <help/>: display this.\n"
-            << "    <options>...</options>: create the map (first thing to do).\n"
-            //<< "    <list/>: list all layers.\n"
-            << "    <image name=\"layerName\">...</image>: load image layer.\n"
-            << "    <elevation name=\"layerName\">...</elevation>: load elevation layer.\n" 
-            << "    <unload name=\"layerName\">: unload layer.\n"
-            << "    <show name=\"layerName\">: show layer.\n"
-            << "    <hide name=\"layerName\">: hide layer.\n"
-            ;
+        std::cout
+                << "    <help/>: display this.\n"
+                << "    <options>...</options>: create the map (first thing to do).\n"
+                //<< "    <list/>: list all layers.\n"
+                << "    <image name=\"layerName\">...</image>: load image layer.\n"
+                << "    <elevation name=\"layerName\">...</elevation>: load elevation layer.\n"
+                << "    <unload name=\"layerName\">: unload layer.\n"
+                << "    <show name=\"layerName\">: show layer.\n"
+                << "    <hide name=\"layerName\">: hide layer.\n"
+                ;
     }
     //bool list() const;
 
-    void loadVectorPostgis( const AttributeMap & );
-    void loadRasterGDAL( const AttributeMap & );
-    void loadElevation( const AttributeMap & );
-    void loadFile( const AttributeMap & );
-    void unloadLayer( const AttributeMap & );
-    void showLayer(const AttributeMap & am);
-    void hideLayer(const AttributeMap & am);
-    void setSymbology( const AttributeMap & );
-    void setFullExtent( const AttributeMap & );
-    void addPlane( const AttributeMap & );
-    void addSky( const AttributeMap & );
-    void lookAt( const AttributeMap & );
-    void writeFile( const AttributeMap & );
+    void loadVectorPostgis( const AttributeMap& );
+    void loadRasterGDAL( const AttributeMap& );
+    void loadElevation( const AttributeMap& );
+    void loadFile( const AttributeMap& );
+    void unloadLayer( const AttributeMap& );
+    void showLayer( const AttributeMap& am );
+    void hideLayer( const AttributeMap& am );
+    void setSymbology( const AttributeMap& );
+    void setFullExtent( const AttributeMap& );
+    void addPlane( const AttributeMap& );
+    void addSky( const AttributeMap& );
+    void lookAt( const AttributeMap& );
+    void writeFile( const AttributeMap& );
 
 private:
 
     // volatile to use only the thread safe interface
     // see http://www.drdobbs.com/cpp/volatile-the-multithreaded-programmers-b/184403766
-    volatile ViewerWidget * _viewer; 
+    volatile ViewerWidget* _viewer;
 
     const std::string _inputFile;
 };

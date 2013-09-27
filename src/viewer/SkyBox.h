@@ -13,14 +13,13 @@
 #include <cassert>
 
 
-class SkyBox : public osg::Transform
-{
+class SkyBox : public osg::Transform {
 public:
     SkyBox();
     SkyBox( const SkyBox& copy, osg::CopyOp copyop= osg::CopyOp::SHALLOW_COPY )
-        : osg::Transform(copy, copyop)
+        : osg::Transform( copy, copyop )
     {}
-    
+
     META_Node( osg, SkyBox );
 
     void setEnvironmentMap( unsigned int unit, osg::Image* posX,
@@ -41,7 +40,7 @@ SkyBox::SkyBox()
     setCullingActive( false );
     osg::StateSet* ss = getOrCreateStateSet();
     ss->setAttributeAndModes( new osg::Depth(
-                                  osg::Depth::LEQUAL, 1.0f, 1.0f) );
+                                  osg::Depth::LEQUAL, 1.0f, 1.0f ) );
     ss->setMode( GL_LIGHTING, osg::StateAttribute::OFF );
     ss->setMode( GL_CULL_FACE, osg::StateAttribute::OFF );
     ss->setRenderBinDetails( 5, "RenderBin" );
@@ -54,7 +53,7 @@ void SkyBox::setEnvironmentMap( unsigned int unit,
                                 osg::Image* posY, osg::Image* negY,
                                 osg::Image* posZ, osg::Image* negZ )
 {
-    assert(posX && negX && posY && negY && posZ && negZ );
+    assert( posX && negX && posY && negY && posZ && negZ );
 
     osg::ref_ptr<osg::TextureCubeMap> cubemap =
         new osg::TextureCubeMap;
@@ -84,15 +83,15 @@ bool SkyBox::computeLocalToWorldMatrix( osg::Matrix& matrix,
                                         osg::NodeVisitor* nv ) const
 {
     if ( nv && nv->getVisitorType()==
-            osg::NodeVisitor::CULL_VISITOR )
-    {
+            osg::NodeVisitor::CULL_VISITOR ) {
         osgUtil::CullVisitor* cv =
             static_cast<osgUtil::CullVisitor*>( nv );
-        matrix.preMult( osg::Matrix::translate(cv->getEyeLocal()) );
+        matrix.preMult( osg::Matrix::translate( cv->getEyeLocal() ) );
         return true;
     }
-    else
+    else {
         return osg::Transform::computeLocalToWorldMatrix( matrix, nv );
+    }
 }
 
 inline
@@ -100,16 +99,16 @@ bool SkyBox::computeWorldToLocalMatrix( osg::Matrix& matrix,
                                         osg::NodeVisitor* nv ) const
 {
     if ( nv && nv->getVisitorType()==
-            osg::NodeVisitor::CULL_VISITOR )
-    {
+            osg::NodeVisitor::CULL_VISITOR ) {
         osgUtil::CullVisitor* cv =
             static_cast<osgUtil::CullVisitor*>( nv );
         matrix.postMult( osg::Matrix::translate(
-                             -cv->getEyeLocal()) );
+                             -cv->getEyeLocal() ) );
         return true;
     }
-    else
+    else {
         return osg::Transform::computeWorldToLocalMatrix( matrix, nv );
+    }
 }
 
 

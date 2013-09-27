@@ -57,4 +57,6 @@ endif()
 add_subdirectory( src )
 add_subdirectory( qgis_plugin )
 
+add_test( Style_test ${CMAKE_SOURCE_DIR}/script/test-style-horao.sh )
+
 
