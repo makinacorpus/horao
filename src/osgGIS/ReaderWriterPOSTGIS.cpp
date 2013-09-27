@@ -189,14 +189,30 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter {
 
         if ( geomIdx >= 0 ) { // we have a geom column, we create the model from it
             for( int i=0; i<numFeatures; i++ ) {
-                mesh.push_back( osgGIS::WKB( PQgetvalue( res.get(), i, geomIdx ) ) );
+                osgGIS::WKB wkb( PQgetvalue( res.get(), i, geomIdx ) );
+                std::cerr << "here\n";
+                assert( wkb.get() );
+
+                if ( !*wkb.get() ) {
+                    continue;    // null value from postgres
+                }
+
+                mesh.push_back( wkb );
             }
         }
         else if ( posIdx >= 0 && heightIdx >= 0 && widthIdx >=0 ) { // we draw bars instead of geom
             for( int i=0; i<numFeatures; i++ ) {
                 const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
                 const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
-                mesh.addBar( osgGIS::WKB( PQgetvalue( res.get(), i, posIdx ) ), w, w, h );
+                osgGIS::WKB wkb( PQgetvalue( res.get(), i, posIdx ) );
+                std::cerr << "here\n";
+                assert( wkb.get() );
+
+                if ( !*wkb.get() ) {
+                    continue;    // null value from postgres
+                }
+
+                mesh.addBar( wkb, w, w, h );
             }
         }
         else {
