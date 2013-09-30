@@ -33,19 +33,37 @@
     <div id="main_content_wrap" class="outer">
       <section id="main_content" class="inner">
 
-<h3>About</h3>
+<h3>Development</h3>
 
-<p>Horao is <a href=http://www.oslandia.com>Oslandia</a>'s 3D visualisation stack. It allows interaction with 3D GIS data.</p>
+<p>
+The project uses git and <a href="https://www.github.com">GitHub</a> to manage the source code, bug reports and issues.</a>
 
-<p>Horao has two main components:
-<ul>
-<li>A simple viewer designed to listen to commands on its standard input. See doc/protocol.txt for the basic protocol specifications (still subject to changes)</li>
-<li>A Python plugin that is used to connect QGIS signals to the viewer (in another process) to allow loading of QGIS layers with 3D geometries.</li>
-</ul>
+<p>You are free to fork the project and welcome to propose evolutions. The prefered way of submitting patches is through the pull request mechanism of GitHub.</p>
 
-<p>The plugin depends on a <a href="https://github.com/Oslandia/Quantum-GIS/tree/postgis3d_and_symbology_emit">QGIS branch</a> where symbology signals have been added.</p>
+<p>Bugs can be reported <i>via</i> the <a href="https://github.com/Oslandia/horao/issues">Issues</a> section of the GitHub project.</p>
 
-<p>Horao is distributed under the terms of the <a href=http://www.gnu.org/licenses/gpl.html>GNU General Public License 3</a>.</p>
+<h4>Branches</h4>
+
+<p>The <code>master</code> branch of the repository represents the current development version of Horao. Each commit on this branch is enforced not to break the compilation and unit / regression tests.</p>
+
+<p>In conformance with the git way of development, each new feature is made on a proper on its own temporary branch.</p>
+
+<h4>Building</h4>
+
+<p>The classic way of building with cmake is to first create a build directory and use a CMake client to configure the build (ccmake or cmake-gui). </p>
+
+<pre>
+mkdir build_debug
+cd build_debug
+ccmake -DCMAKE_BUILD_TYPE=Debug .. && make -j 2 </pre>
+
+<p>Environment variables and build options are listed in the <a href="installation.html">instalation section</a>.</p>
+
+<h4>Tests</h4>
+
+<p>Horao uses ctest as its test framework. Running ctest will run all test.
+</p>
+
       </section>
     </div>
 
