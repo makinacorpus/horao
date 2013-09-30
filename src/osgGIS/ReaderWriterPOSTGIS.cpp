@@ -204,7 +204,6 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter {
         if ( geomIdx >= 0 ) { // we have a geom column, we create the model from it
             for( int i=0; i<numFeatures; i++ ) {
                 osgGIS::WKB wkb( PQgetvalue( res.get(), i, geomIdx ) );
-                std::cerr << "here\n";
                 assert( wkb.get() );
 
                 if ( !*wkb.get() ) {
@@ -219,7 +218,6 @@ struct ReaderWriterPOSTGIS : osgDB::ReaderWriter {
                 const float h = atof( PQgetvalue( res.get(), i, heightIdx ) );
                 const float w = atof( PQgetvalue( res.get(), i, widthIdx ) );
                 osgGIS::WKB wkb( PQgetvalue( res.get(), i, posIdx ) );
-                std::cerr << "here\n";
                 assert( wkb.get() );
 
                 if ( !*wkb.get() ) {
