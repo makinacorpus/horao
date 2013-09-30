@@ -26,6 +26,8 @@ extern "C" {
 #include <boost/graph/undirected_dfs.hpp>
 #include <boost/noncopyable.hpp>
 
+#include <iostream>
+
 // poly2tri gives better triangulation (delauny) than GLUtesselator
 // in about twice the time (wich is really good)
 // but since it's not robust, even with valid geometries (touching rings),
