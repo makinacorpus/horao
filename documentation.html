@@ -35,44 +35,210 @@
 
 <h3>Documentation</h3>
 
+
+<h4>QGIS Plugin</h4>
+
 <p>The qgis plugin has no options an just needs to be launched from QGIS. If an elevation layer is present, the terrain will be modelled.</p>
 
+
+<h4>Standalone viewer</h4>
+
+<h5>Overview</h5>
 <p>The viewer can also be used standalone (i.e. without QGIS). </p>
 <ul>
     <li>layers can be added, removed or hidden using their ID</li>
     <li>3D models come either from postgis DB or from file</li>
     <li>data loading can be long, therefore tiles are added to the scenegraph when needed (using LOD)</li>
 </ul>
-<!--
-<p>The commands are followed by a space separated list of key-value pairs of the form <code>key="value"</code>. The keys are command arguments. The accepted commands and their arguments are :</p>
+
+<p>
+The viewer reads commands from standard input. The general syntax for commands is:</p>
+
+<code>command_name arg1="value1" arg2="value2" ...</code></p>
+
+<p>Please note that:</p>
 <ul>
-    <li>loadVectorPostgis <ul>
-        <li>[lod] : this allows to specify </li>
-        <li>extent : mendatory if lod is specified</li>
-        <li>tile_size : mendatory if lod is specified</li>
-        <li>origin : the position of the layer </li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li></li>
-        <li>[geocolumn] : the name of the geometru column in the table.</li>
-    </ul>
-    </li>
-    <li>loadRasterGDAL </li>
-    <li>loadElevation </li>
-    <li>loadFile </li>
-    <li>unloadLayer </li>
-    <li>showLayer </li>
-    <li>hideLayer </li>
-    <li>setSymbology </li>
-    <li>setFullExtent </li>
-    <li>addPlane </li>
-    <li>lookAt </li>
-    <li>addSky </li>
-    <li>writeFile </li>
+    <li> the command is interpreted at the end of the line with the character '\n'</li>
+    <li> line ending with backslash '\' are continued on the next line (like C macros, or shell lines)</li>
+    <li> line starting with dash '#' are comments</li>
+    <li> values are XML attributes. It follows the rules of XML attribute escaping (& quot;</code> for double quotes, etc.)</li>
 </ul>
-<p>Brackets [] indicate that the argument is optional.</p>
--->
+
+<p>Each command returns a line giving their status, with the following syntax (return arguments are optional) :</p>
+<ul>
+    <li> in case of success :
+    <code>< ok ret_arg1="value1" ret_arg2="value2" ... /></code>
+    </li>
+    <li> in case of failure :
+    <code>< error msg="error message" ret_arg1="value1" ... /></code>
+    </li>
+</ul>
+
+<h5>List of available commands</h5>
+
+<h6>loadVectorPostGIS</h6>
+
+<p>Load a vector layer from disk/db and add it to the scene</p>
+
+<p>arguments:</p>
+<ul>
+<li>    id="id"</li>
+<li>    conninfo="dbname='mydb' host='locahost' user='me'"</li>
+<li>    origin="x y z"</li>
+<li>    extent="xmin ymin,xmax ymax"</li>
+</ul>
+<p>additional without LOD:</p>
+<ul>
+<li>    query="SQL query"</li>
+</ul>
+<p>additional with LOD:</p>
+<ul>
+<li> lod="lod_distance_level1 lod_distance_level2 ..." (from the further to the nearest)</li>
+<li> tile_size=</li>
+<li> query_0=""</li>
+<li> query_1=""</li>
+</ul>
+
+<p>optional arguments:</p>
+<ul>
+<li>    geocolumn="geom" name of the geometry column (geom by default)</li>
+<li>    file= elevation file to drape objects on</li>
+</ul>
+
+<h6>loadRasterGDAL</h6>
+
+<p>arguments:</p>
+<ul>
+<li> id="id"</li>
+<li> url="file://home/me/file.tif"</li>
+<li> drape_on="layer_id" vector/elevation layer id where raster will be draped on. If not present, a new plane layer with z=0 will be created</li>
+</ul>
+
+<h6>loadElevation</h6>
+
+<p>Build a terrain, based on a raster with altitude data</p>
+
+<p>arguments:</p>
+<ul>
+<li>  driver (mandatory): only "gdal" for now.</li>
+<li>  id (mandatory)</li>
+<li>  origin</li>
+<li>  extent</li>
+<li>  file= GDAL file. It will load the .ive (generated from osgdem) if present</li>
+</ul>
+ 
+<p>without LOD:</p>
+<ul>
+<li>  mesh_size</li>
+</ul>
+
+<p>with LOD:</p>
+<ul>
+<li>  tile_size</li>
+<li>  lod="lod_altitude_1 lod_altitude_2 ..." (from the further to the nearest)</li>
+<li>  mesh_size_0</li>
+<li>  mesh_size_1</li>
+<li>  ...</li>
+</ul>
+
+<h6>loadFile</h6>
+
+<p>Load an OSG file</p>
+
+<p>arguments:</p>
+<ul>
+<li>  id</li>
+<li>  file : file path</li>
+<li>  origin</li>
+</ul>
+
+<h6>unloadLayer</h6>
+
+<p>Unload a layer.</p> 
+
+<p>arguments:</p>
+<ul>
+<li> id (mandatory): layer id to unload</li>
+</ul>
+
+<h6>showLayer</h6>
+
+<p>Force the display of a layer</p>
+
+<p>arguments:</p>
+<ul>
+<li> id (mandatory): layer id to show</li>
+</ul>
+
+<h6>hideLayer</h6>
+
+<p>Force a layer to disappear. The layer is not unloaded. It can be showed afterward.</p>
+
+<p>arguments:</p>
+<ul>
+<li> id (mandatory): layer id to show</li>
+</ul>
+
+<h6>setSymbology</h6>
+
+<p>Sets the symbology of a (vector) layer</p>
+
+<p>arguments:</p>
+<ul>
+<li>id (mandatory): layer id to modify</li>
+<li><li>fill_color_ambient="#rrggbb"</li></li>
+<li>fill_color_diffuse="#rrggbb"</li>
+<li>fill_color_specular="#rrggbb"</li>
+<li>fill_color_shininess=float between 0 and 1</li>
+<li>...</li>
+</ul>
+
+<h6>setFullExtent</h6>
+
+Sets the full extent of the scene and the global SRID
+
+<p>arguments:</p>
+<ul>
+<li>srid: EPSG code for the global SRID</li>
+<li>x_min</li>
+<li>x_max</li>
+<li>y_min</li>
+<li>y_max</li>
+</ul>
+
+<h6>addPlane</h6>
+
+<p>Adds a simple plane to the scene</p>
+
+<p>arguments:</p>
+<ul>
+<li> id</li>
+<li> origin</li>
+<li> extent</li>
+</ul>
+
+<h6>lookAt</h6>
+
+<p>Sets the camera parameters</p>
+
+<p>arguments:</p>
+<ul>
+<li>eye="x y z"</li>
+<li>center="x y z"</li>
+<li>up="x y z"</li>
+</ul>
+
+<p>alternate arguments:</p>
+<ul>
+<li>origin="x y z"</li>
+<li>extent="xmin ymin,xmax ymax"</li>
+</ul>
+
+<h6>addSky</h6>
+
+<h6>writeFile</h6>
+
+
       </section>
     </div>
 
