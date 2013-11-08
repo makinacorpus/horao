@@ -37,9 +37,41 @@
 
 <p>The qgis plugin has no options an just needs to be launched from QGIS. If an elevation layer is present, the terrain will be modelled.</p>
 
-<p>The viewer can also be used standalone (i.e. without QGIS). The accepted commands are: </p>
+<p>The viewer can also be used standalone (i.e. without QGIS). </p>
+<ul>
+    <li>layers can be added, removed or hidden using their ID</li>
+    <li>3D models come either from postgis DB or from file</li>
+    <li>data loading can be long, therefore tiles are added to the scenegraph when needed (using LOD)</li>
+</ul>
 
-
+<p>The commands are followed by a space separated list of key-value pairs of the form <code>key="value"</code>. The keys are command arguments. The accepted commands and their arguments are :</p>
+<ul>
+    <li>loadVectorPostgis <ul>
+        <li>[lod] : this allows to specify </li>
+        <li>extent : mendatory if lod is specified</li>
+        <li>tile_size : mendatory if lod is specified</li>
+        <li>origin : the position of the layer </li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li></li>
+        <li>[geocolumn] : the name of the geometru column in the table.</li>
+    </ul>
+    </li>
+    <li>loadRasterGDAL </li>
+    <li>loadElevation </li>
+    <li>loadFile </li>
+    <li>unloadLayer </li>
+    <li>showLayer </li>
+    <li>hideLayer </li>
+    <li>setSymbology </li>
+    <li>setFullExtent </li>
+    <li>addPlane </li>
+    <li>lookAt </li>
+    <li>addSky </li>
+    <li>writeFile </li>
+</ul>
+<p>Brackets [] indicate that the argument is optional.</p>
       </section>
     </div>
 
