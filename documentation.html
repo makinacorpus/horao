@@ -58,10 +58,10 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>Please note that:</p>
 <ul>
-    <li> the command is interpreted at the end of the line with the character '\n'</li>
-    <li> line ending with backslash '\' are continued on the next line (like C macros, or shell lines)</li>
-    <li> line starting with dash '#' are comments</li>
-    <li> values are XML attributes. It follows the rules of XML attribute escaping (& quot;</code> for double quotes, etc.)</li>
+    <li> the command is interpreted at the end of the line with the character <code>\n</code></li>
+    <li> line ending with backslash <code>\</code> are continued on the next line (like C macros, or shell lines)</li>
+    <li> line starting with dash <code>#</code> are comments</li>
+    <li> values are XML attributes. It follows the rules of XML attribute escaping (e.g. <code>&#38quot;</code> for <code>"</code>)</li>
 </ul>
 
 <p>Each command returns a line giving their status, with the following syntax (return arguments are optional) :</p>
@@ -76,43 +76,36 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <h5>List of available commands</h5>
 
-<h6>loadVectorPostGIS</h6>
+<h6>loadVectorPostgis</h6>
 
-<p>Load a vector layer from disk/db and add it to the scene</p>
+<p>Load a vector layer from disk/db and add it to the scene. With level of detail (LOD) option, even if there is only one level, the data are loaded by tiles (nearest tiles first).</p>
 
 <p>arguments:</p>
 <ul>
-<li>    id="id"</li>
-<li>    conninfo="dbname='mydb' host='locahost' user='me'"</li>
-<li>    origin="x y z"</li>
-<li>    extent="xmin ymin,xmax ymax"</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
+    <li><strong>conninfo="string"</strong> postgresql connection info e.g. "dbname='mydb' host='locahost' user='me'."</li>
+    <li><strong>origin="float float float"</strong> "x y z" position of the origin of the layer in the 3D scene (please note that the 3D coordinates of points on the graphics card are usually floats with 32bit precision, due to that the scene should be as close to the scene origin as possible to minimize rounding errors).</li>
 </ul>
-<p>additional without LOD:</p>
+<p>additional arguments without LOD:</p>
 <ul>
-<li>    query="SQL query"</li>
+    <li><strong>query="string"</strong> SQL query.</li>
 </ul>
-<p>additional with LOD:</p>
+<p>additional arguments with LOD:</p>
 <ul>
-<li> lod="lod_distance_level1 lod_distance_level2 ..." (from the further to the nearest)</li>
-<li> tile_size=</li>
-<li> query_0=""</li>
-<li> query_1=""</li>
+    <li><strong>lod="distance1 distance2 dtistance3..."</strong> lod1 will be desplayed between distance1 and distance2, lod2 between ditance2 and distance3 (from the farest to the nearest)</li>
+    <li><strong>extent="float float,float float"</strong> "xmin ymin,xmax ymax" of the layer, this will be used to compute tiles coordinates and fetch only data in the given extent (i.e. not the complete query result).</li>
+    <li><strong>tile_size="float"</strong> the size of a tile (in map units)</li>
+    <li><strong>query_0="string"</strong> SQL query for first level of detail (far).</li>
+    <li><strong>query_1="string"</strong> SQL query for second level of detail (closer).</li>
+    <li><strong>query_<i>N</i>="string"</strong> SQL query for <i>N</i>th level of detail.</li>
 </ul>
 
 <p>optional arguments:</p>
 <ul>
-<li>    geocolumn="geom" name of the geometry column (geom by default)</li>
-<li>    file= elevation file to drape objects on</li>
+    <li><strong>geocolumn="string"</strong> name of the geometry column ("geom" by default).</li>
+    <li><strong>file="string"</strong> elevation file to drape 2D objects on.</li>
 </ul>
 
-<h6>loadRasterGDAL</h6>
-
-<p>arguments:</p>
-<ul>
-<li> id="id"</li>
-<li> url="file://home/me/file.tif"</li>
-<li> drape_on="layer_id" vector/elevation layer id where raster will be draped on. If not present, a new plane layer with z=0 will be created</li>
-</ul>
 
 <h6>loadElevation</h6>
 
@@ -120,25 +113,24 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>arguments:</p>
 <ul>
-<li>  driver (mandatory): only "gdal" for now.</li>
-<li>  id (mandatory)</li>
-<li>  origin</li>
-<li>  extent</li>
-<li>  file= GDAL file. It will load the .ive (generated from osgdem) if present</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
+    <li><strong>file="string"</strong> if a .tif elevation file is specified and a .ive file (generated with osgdem from Virtual Planet Builder) with hte same basename is present, the .ive file will be used.</li>
+    <li><strong>origin="float float float"</strong> see loadVectorPostgis</li>
+    <li><strong>extent="float float,float float"</strong> "xmin ymin,xmax ymax" of the layer, this will be used to compute tiles coordinates and fetch only data in the given extent.</li>
 </ul>
  
 <p>without LOD:</p>
 <ul>
-<li>  mesh_size</li>
+    <li><strong>mesh_size="float"</strong> the size of the triangles used to render the surface (in map units).</li>
 </ul>
 
 <p>with LOD:</p>
 <ul>
-<li>  tile_size</li>
-<li>  lod="lod_altitude_1 lod_altitude_2 ..." (from the further to the nearest)</li>
-<li>  mesh_size_0</li>
-<li>  mesh_size_1</li>
-<li>  ...</li>
+    <li><strong>lod="distance1 distance2 dtistance3..."</strong> see loadVectorPostgis.</li>
+    <li><strong>tile_size="float"</strong> see loadVectorPostgis</li>
+    <li><strong>mesh_size_0="float"</strong> the size of the triangles used to render the surface (in map units) at the first level of detail.</li>
+    <li><strong>mesh_size_1="float"</strong> the size of the triangles used to render the surface (in map units) at the second level of detail.</li>
+    <li><strong>mesh_size_<i>N</i>="float"</strong> the size of the triangles used to render the surface (in map units) at the <i>N</i>th level of detail.</li>
 </ul>
 
 <h6>loadFile</h6>
@@ -147,9 +139,9 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>arguments:</p>
 <ul>
-<li>  id</li>
-<li>  file : file path</li>
-<li>  origin</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
+    <li><strong>file="string"</strong> file path.</li>
+    <li><strong>origin="float float float"</strong> see loadVectorPostgis</li>
 </ul>
 
 <h6>unloadLayer</h6>
@@ -158,7 +150,7 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>arguments:</p>
 <ul>
-<li> id (mandatory): layer id to unload</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
 </ul>
 
 <h6>showLayer</h6>
@@ -167,7 +159,7 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>arguments:</p>
 <ul>
-<li> id (mandatory): layer id to show</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
 </ul>
 
 <h6>hideLayer</h6>
@@ -176,7 +168,7 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>arguments:</p>
 <ul>
-<li> id (mandatory): layer id to show</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
 </ul>
 
 <h6>setSymbology</h6>
@@ -185,25 +177,11 @@ The viewer reads commands from standard input. The general syntax for commands i
 
 <p>arguments:</p>
 <ul>
-<li>id (mandatory): layer id to modify</li>
-<li><li>fill_color_ambient="#rrggbb"</li></li>
-<li>fill_color_diffuse="#rrggbb"</li>
-<li>fill_color_specular="#rrggbb"</li>
-<li>fill_color_shininess=float between 0 and 1</li>
-<li>...</li>
-</ul>
-
-<h6>setFullExtent</h6>
-
-Sets the full extent of the scene and the global SRID
-
-<p>arguments:</p>
-<ul>
-<li>srid: EPSG code for the global SRID</li>
-<li>x_min</li>
-<li>x_max</li>
-<li>y_min</li>
-<li>y_max</li>
+    <li><strong>id="string"</strong> layer identifier.</li>
+    <li><strong>fill_color_ambient="#rrggbb"</strong> color in html color format (e.g. "#FF0000" for red).</li>
+    <li><strong>fill_color_diffuse="#rrggbb"</strong></li>
+    <li><strong>fill_color_specular="#rrggbb"</strong></li>
+    <li><strong>fill_color_shininess="float"</strong> value between 0 and 1.</li>
 </ul>
 
 <h6>addPlane</h6>
@@ -213,8 +191,8 @@ Sets the full extent of the scene and the global SRID
 <p>arguments:</p>
 <ul>
 <li> id</li>
-<li> origin</li>
-<li> extent</li>
+    <li><strong>origin="float float float"</strong> "x y z" plane center in 3D scene coordinates.</li>
+    <li><strong>extent="float float,float float"</strong> "xmin ymin,xmax ymax" of the plane</li>
 </ul>
 
 <h6>lookAt</h6>
@@ -223,20 +201,34 @@ Sets the full extent of the scene and the global SRID
 
 <p>arguments:</p>
 <ul>
-<li>eye="x y z"</li>
-<li>center="x y z"</li>
-<li>up="x y z"</li>
+    <li><strong>eye="float float float"</strong> "x y z" position of the camera</li>
+    <li><strong>center="float float float"</strong> "x y z" coordinate to center of the view on.</li>
+    <li><strong>up="x y z"</strong> direction that will appear vertical on the screen.</li>
 </ul>
-
 <p>alternate arguments:</p>
 <ul>
-<li>origin="x y z"</li>
-<li>extent="xmin ymin,xmax ymax"</li>
+    <li><strong>origin="float float float"</strong> "x y z" coordinate to center of the view on.</li>
+    <li><strong>extent="float float,float float"</strong> "xmin ymin,xmax ymax" of viewed plane.</li>
 </ul>
 
 <h6>addSky</h6>
 
+<p>Add a sky to scene. The sky is composed of images projected on the inside of a cube center on the 3D scene origin.</p>
+
+<p>arguments:</p>
+<ul>
+    <li><strong>radius="float"</strong> distance of the cube faces from the 3D scene origin.</li>
+    <li><strong>image="string"</strong> basename of the image, e.g. if image="sky.png", images posX_sky.png, negX_sky.png, posY_sky.png, negY_sky.png, posZ_sky.png and negZ_sky.png must exist in a directory listed in OSG_FILE_PATH</li>
+</ul>
+
+
 <h6>writeFile</h6>
+
+Write scene to file. 
+<p>arguments:</p>
+<ul>
+    <li><strong>file="string"</strong> file path (the file extension is used by osg drivers to determine export format).</li>
+</ul>
 
 
       </section>

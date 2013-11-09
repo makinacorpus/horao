@@ -11,7 +11,7 @@ MeyerWeb Reset
 
 html, body, div, span, applet, object, iframe,
 h1, h2, h3, h4, h5, h6, p, blockquote, pre,
-a, abbr, acronym, address, big, cite, code,
+a, abbr, acronym, address, big, cite, code, arg,
 del, dfn, em, img, ins, kbd, q, s, samp,
 small, strike, strong, sub, sup, tt, var,
 b, u, i, center,
@@ -132,6 +132,10 @@ footer a:hover {
 }
 
 em {
+  font-style: italic;
+}
+
+i {
   font-style: italic;
 }
 
@@ -422,6 +426,10 @@ Small Device Styles
     min-width: 320px;
     max-width: 480px;
     font-size: 11px;
+  }
+
+  arg {
+  font-family: Monaco, "Bitstream Vera Sans Mono", "Lucida Console", Terminal, monospace;
   }
 
 }
