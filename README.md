@@ -13,6 +13,4 @@ See doc/protocol.txt for the basic protocol specifications (still subject to cha
 The other piece is a Python plugin that is used to connect QGIS signals to the viewer (in another process) to allow loading
 of QGIS layers with 3D geometries.
 
-It depends on a local branch of QGIS where 3D geometries and 3D types are properly imported by QGIS together
-with some addition regarding handling of symbology signals.
-The branch can be found on our repository: https://github.com/Oslandia/Quantum-GIS/tree/postgis3d_and_symbology_emit
+If you want to be able to properly load PostGIS vector layers with 3D data as well as synchronize color changes between the 2D view and the 3D view, you should use a recent version of QGIS (~ end of august 2013).
