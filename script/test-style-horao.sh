@@ -11,6 +11,8 @@ for a in $@; do
     case $a in
         --fix)
             fix=true;;
+        --verbose)
+            verbose=true;;
         -*)
             echo unknown option $a
             exit 1;;
@@ -24,13 +26,17 @@ err=""
 for dir in "$base/src"; do
     #echo processing $dir
     for src in $(find $dir -name '*.cpp' -or -name '*.h'); do
-        #echo "   " $src
+        echo "processing " $src
         astyle -n --style=stroustrup --indent=spaces=4 \
                --break-closing-brackets --break-blocks --align-pointer=type \
                --add-brackets --pad-paren-in < $src > astyle.tmp.out 
         dif=$(diff $src astyle.tmp.out)
         if [ -n "$dif" ]; then
             #echo diff in $src
+            if [ $verbose ]; then
+                echo diff in $src
+                echo $dif
+            fi
             if [ $fix ]; then
                 cp astyle.tmp.out $src
             else
