@@ -35,7 +35,7 @@ import math
 
 # constants.
 
-qset = QSettings( "oslandia", "demo3dstack_qgis_plugin" )
+qset = QSettings( "oslandia", "horao_qgis_plugin" )
 
 SIMPLEVIEWER_BIN = qset.value( "horaoviewer_path", "horaoViewerd" )
 
@@ -129,7 +129,6 @@ class Canvas3D:
             self.sendToViewer( 'setSymbology', style )
 
     def addLayer( self, layer ):
-        print "layer %s added: %s" % (layer.id(), layer.source() )
         providerName = layer.dataProvider().name()
 
         # get position in layer set (z-index)
@@ -297,11 +296,15 @@ class Canvas3D:
 
         # update symbology
         self.onPropertiesChanged( layer )
+        # connect to rendererChanged
+        QObject.connect( layer, SIGNAL( "rendererChanged()" ), lambda l=layer: self.onPropertiesChanged(l) )
 
     def removeLayer( self, layer ):
         if self.layers.has_key( layer ):
             layerId = self.layers[ layer ].id
             self.sendToViewer( 'unloadLayer', { 'id': layerId } )
+            # disconnect
+            QObject.disconnect( layer, SIGNAL( "rendererChanged()" ), lambda l=layer: self.onPropertiesChanged(l) )
 
             del self.layers[ layer ]
 
@@ -371,8 +374,6 @@ class Canvas3D:
             # when the extent has changed
             QObject.connect( self.iface.mapCanvas(), SIGNAL( "extentsChanged()" ), self.updateCamera )
 
-            q = self.iface.mainWindow()
-            QObject.connect( q, SIGNAL( "propertiesChanged( QgsMapLayer * )" ), self.onPropertiesChanged )
             self.signalsConnected = True
 
         # get the current global extent
