@@ -3,6 +3,9 @@ Horao
 
 Oslandia's 3D visualisation stack
 
+* [Documentation](http://oslandia.github.io/horao/)
+
+
 Current architecture
 --------------------
 
